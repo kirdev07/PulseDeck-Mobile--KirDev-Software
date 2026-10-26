@@ -92,7 +92,7 @@ fun MonitoringScreen(app: PulseDeskApp) {
                     ChartCard(series.cpu, 100f, "$seconds с назад", "Сейчас")
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 10.dp)) {
                         Fact("Потоки", m.cpuCores?.toString() ?: Format.UNKNOWN, Modifier.weight(1f))
-                        Fact("Использование", Format.percent(m.cpu.load), Modifier.weight(1f))
+                        Fact("Нагрузка", Format.percent(m.cpu.load), Modifier.weight(1f))
                         Fact("Работает", Format.uptime(m.uptime), Modifier.weight(1f))
                     }
                     if (m.perCore.isNotEmpty()) {

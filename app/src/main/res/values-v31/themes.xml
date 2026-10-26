@@ -1,0 +1,11 @@
+<resources>
+    <!-- Android 12+: the system splash shows the logo on black only for as long as the app really
+         takes to start (no artificial delay). -->
+    <style name="Theme.PulseDesk" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowSplashScreenBackground">@android:color/black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

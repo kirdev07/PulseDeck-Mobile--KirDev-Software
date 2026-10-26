@@ -84,17 +84,6 @@ PulseDesk — Android-клиент программы **PulseDeck** для Windo
 
 Таблица соответствия: [docs/PULSEDESK_API_COMPATIBILITY.md](docs/PULSEDESK_API_COMPATIBILITY.md).
 
-## Сборка
-
-Нужны Android SDK и JDK 21 (подойдёт JBR из Android Studio).
-
-```bash
-./gradlew :app:assembleDebug
-```
-
-Для release-сборки положите `keystore.properties` рядом с проектом (формат как в PulseDeck Panel).
-Ключ и пароли в репозиторий не входят.
-
 ## Документация
 
 - [Аудит прежнего клиента](docs/PULSEDESK_AUDIT.md)

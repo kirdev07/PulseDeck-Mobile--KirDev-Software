@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import com.kirdev.pulsedeckmobile.core.ui.ScreenHeader
 import com.kirdev.pulsedeckmobile.core.ui.SectionTitle
 import com.kirdev.pulsedeckmobile.core.utils.Format
 import com.kirdev.pulsedeckmobile.data.local.Prefs
+import com.kirdev.pulsedeckmobile.data.update.UpdateState
 import com.kirdev.pulsedeckmobile.feature.pulse.KiroXMotion
 import com.kirdev.pulsedeckmobile.navigation.Routes
 
@@ -93,6 +95,9 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
                 Text("PulseDesk ${BuildConfigInfo.version(app)}", fontSize = 14.sp, color = Palette.Text)
                 Text("Клиент PulseDeck для Windows · KiroX Systems", fontSize = 12.sp, color = Palette.Text3)
             }
+
+            SectionTitle("Обновления")
+            Updates(app)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -138,6 +143,39 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { KiroXMotion(animate = prefs.animations) }
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** GitHub Releases: check, show what is new, download; Android's installer does the rest. */
+@Composable
+private fun Updates(app: PulseDeskApp) {
+    val state by app.updater.state.collectAsStateWithLifecycle()
+    val current = app.updater.current
+    val check = "Проверить" to { app.updater.check() }
+    val (text, action) = when (val s = state) {
+        UpdateState.Idle -> "Установлена версия $current." to check
+        UpdateState.Checking -> "Проверяю обновления…" to null
+        is UpdateState.UpToDate -> "Установлена последняя версия ${s.version}." to check
+        is UpdateState.Available -> "Доступна версия ${s.release.version} (у вас $current)." to
+            ("Скачать и установить" to { app.updater.download(s.release) })
+        is UpdateState.Downloading -> "Скачиваю ${s.release.version}: ${(s.fraction * 100).toInt()}%" to null
+        is UpdateState.Ready -> ("Версия ${s.release.version} скачана. Подтвердите установку в окне Android. " +
+            "Если окна нет — разрешите PulseDesk устанавливать приложения и нажмите «Установить».") to
+            ("Установить" to { app.updater.install(s.file) })
+        is UpdateState.Failed -> s.message to check
+    }
+    val notes = (state as? UpdateState.Available)?.release?.notes.orEmpty()
+    PanelCard(Modifier.fillMaxWidth()) {
+        Text(text, fontSize = 14.sp, color = Palette.Text)
+        if (notes.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(notes.take(600), fontSize = 12.sp, color = Palette.Text2, lineHeight = 17.sp)
+        }
+        if (action != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = action.second) { Text(action.first, color = Palette.accent) }
+            }
         }
     }
 }

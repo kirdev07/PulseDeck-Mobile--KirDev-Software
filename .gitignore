@@ -21,3 +21,6 @@ keystore.properties
 # IDE and Kotlin caches
 .idea/
 .kotlin/
+
+# Built APKs for releases
+/dist/

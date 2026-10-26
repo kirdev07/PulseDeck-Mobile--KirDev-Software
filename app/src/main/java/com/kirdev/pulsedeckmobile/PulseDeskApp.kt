@@ -7,6 +7,7 @@ import com.kirdev.pulsedeckmobile.data.local.AppSettings
 import com.kirdev.pulsedeckmobile.data.local.PairingStore
 import com.kirdev.pulsedeckmobile.data.remote.PcApi
 import com.kirdev.pulsedeckmobile.data.remote.PcConnection
+import com.kirdev.pulsedeckmobile.data.update.Updater
 import com.kirdev.pulsedeckmobile.feature.notifications.EventsFeed
 import com.kirdev.pulsedeckmobile.media.MediaNotificationService
 import com.kirdev.pulsedeckmobile.media.hasTrack
@@ -29,6 +30,7 @@ class PulseDeskApp : Application() {
     lateinit var api: PcApi
     lateinit var history: MetricsHistory
     lateinit var events: EventsFeed
+    lateinit var updater: Updater
 
     /** The activity is started (on screen): set by MainActivity.onStart/onStop. */
     val visible = MutableStateFlow(false)
@@ -41,6 +43,8 @@ class PulseDeskApp : Application() {
         api = PcApi(connection.endpoint)
         history = MetricsHistory(connection.metrics, scope)
         events = EventsFeed(api)
+        updater = Updater(this, scope)
+        updater.checkAutomatically()
 
         scope.launch {
             settings.values.collect {

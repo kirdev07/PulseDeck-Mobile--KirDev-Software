@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -69,8 +70,16 @@ fun ConnectionScreen(viewModel: ConnectionViewModel, onBack: (() -> Unit)?, onPa
 @Composable
 private fun Choose(step: Step, viewModel: ConnectionViewModel) {
     var address by remember { mutableStateOf("") }
+    val context = LocalContext.current
     VSpace(8.dp)
-    Text("Введите IP-адрес или выберите устройство", fontSize = 13.sp, color = Palette.Text2)
+    PillButton("Сканировать QR-код", Modifier.fillMaxWidth()) {
+        QrScanner.scan(context, viewModel::pairFromQr, viewModel::showError)
+    }
+    VSpace(6.dp)
+    Text("На ПК: «Телефон» → «Показать код» — и наведите камеру на QR-код. Быстрее всего и без поиска в сети.",
+        fontSize = 12.sp, color = Palette.Text3, lineHeight = 16.sp)
+    VSpace(16.dp)
+    Text("Или введите IP-адрес либо выберите устройство", fontSize = 13.sp, color = Palette.Text2)
     VSpace(10.dp)
     PanelTextField(address, { address = it.take(40) }, placeholder = "192.168.1.5",
         keyboard = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go))

@@ -1,4 +1,4 @@
-﻿import java.util.Properties
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -20,8 +20,8 @@ android {
         applicationId = "com.kirdev.pulsedeckmobile"
         minSdk = 30
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
     }
 
     signingConfigs {
@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.okhttp)
+    implementation(libs.play.services.code.scanner)     // QR pairing; scanning UI lives in Play services
     implementation(libs.androidx.navigation.compose)
 
     testImplementation(libs.junit)

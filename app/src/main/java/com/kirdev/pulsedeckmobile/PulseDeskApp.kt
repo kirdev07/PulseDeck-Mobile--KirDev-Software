@@ -44,7 +44,6 @@ class PulseDeskApp : Application() {
         history = MetricsHistory(connection.metrics, scope)
         events = EventsFeed(api)
         updater = Updater(this, scope)
-        updater.checkAutomatically()
 
         scope.launch {
             settings.values.collect {

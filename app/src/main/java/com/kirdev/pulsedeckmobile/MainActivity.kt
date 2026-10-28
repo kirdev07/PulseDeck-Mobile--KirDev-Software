@@ -7,7 +7,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import com.kirdev.pulsedeckmobile.core.theme.PulseDeskTheme
+import com.kirdev.pulsedeckmobile.core.ui.AppOverlays
 import com.kirdev.pulsedeckmobile.navigation.AppNavigation
 
 class MainActivity : ComponentActivity() {
@@ -20,7 +24,14 @@ class MainActivity : ComponentActivity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
-        setContent { PulseDeskTheme { AppNavigation(app) } }
+        setContent {
+            PulseDeskTheme {
+                Box(Modifier.fillMaxSize()) {
+                    AppNavigation(app)
+                    AppOverlays(app)          // local network permission (Android 17), update prompt
+                }
+            }
+        }
     }
 
     override fun onStart() {
@@ -28,6 +39,7 @@ class MainActivity : ComponentActivity() {
         app.visible.value = true
         app.connection.setUiVisible(true)       // metrics only while the app is on screen
         app.connection.hold(UI)
+        app.updater.checkAutomatically()       // a new version downloads at once and is offered
     }
 
     override fun onStop() {

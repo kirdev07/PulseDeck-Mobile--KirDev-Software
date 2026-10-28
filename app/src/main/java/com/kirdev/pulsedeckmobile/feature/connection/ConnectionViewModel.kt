@@ -97,6 +97,42 @@ class ConnectionViewModel(
         }
     }
 
+    /**
+     * QR code from the PC: addresses, port, full certificate fingerprint and the code. No
+     * network search needed; the certificate must match the QR, so nobody else can answer.
+     */
+    fun pairFromQr(text: String) {
+        val qr = PairingQr.parse(text)
+        if (qr == null) {
+            _step.value = Step.Failed("Это не QR-код PulseDeck. На ПК откройте «Телефон» → «Показать код».")
+            return
+        }
+        job?.cancel()
+        _step.value = Step.Probing(qr.hosts.firstOrNull() ?: "ПК")
+        job = viewModelScope.launch {
+            var lastError = "ПК не отвечает ни по одному адресу из QR-кода. Телефон в той же сети Wi-Fi?"
+            for (host in qr.hosts.filter(::isPrivateAddress)) {
+                _step.value = Step.Probing(host)
+                val probe = runCatching { client.probe(host, qr.port) }.getOrNull() ?: continue
+                if (!probe.fingerprint.replace(":", "").equals(qr.fingerprint, ignoreCase = true)) {
+                    lastError = "Сертификат ПК не совпадает с QR-кодом. Подключение остановлено."
+                    continue
+                }
+                try {
+                    val (token, pcName) = client.pair(host, qr.port, probe.fingerprint, qr.code, deviceName())
+                    store.save(PairedPc.of(pcName.ifBlank { qr.name }, host, qr.port, probe.fingerprint), token)
+                    connection.restart()
+                    _step.value = Step.Paired
+                    return@launch
+                } catch (e: Exception) {
+                    lastError = e.message ?: "ПК отклонил подключение. Код действует 2 минуты — покажите новый."
+                    break
+                }
+            }
+            _step.value = Step.Failed(lastError)
+        }
+    }
+
     fun submit(code: String) {
         val current = _step.value as? Step.EnterCode ?: return
         val digits = code.filter(Char::isDigit)

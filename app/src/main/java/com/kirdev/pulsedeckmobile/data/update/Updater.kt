@@ -50,17 +50,22 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull() ?: "0"
 
-    /** At most once per [AUTO_HOURS] on app start; a manual check in Settings always runs. */
+    /**
+     * Every time the app comes on screen (at most once per [AUTO_HOURS]): a new version is
+     * downloaded right away and Android's install prompt follows. A manual check always runs.
+     */
     fun checkAutomatically() {
+        val busy = _state.value.let { it is UpdateState.Downloading || it is UpdateState.Ready || it is UpdateState.Checking }
+        if (busy) return
         val last = prefs.getLong(LAST_CHECK, 0)
-        if (System.currentTimeMillis() - last >= AUTO_HOURS * 3_600_000L) check()
+        if (System.currentTimeMillis() - last >= AUTO_HOURS * 3_600_000L) check(download = true)
     }
 
-    fun check() {
+    fun check(download: Boolean = false) {
         if (job?.isActive == true) return
         job = scope.launch {
             _state.value = UpdateState.Checking
-            _state.value = try {
+            val result = try {
                 val release = latest()
                 prefs.edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
                 if (release != null && isNewer(release.version, current)) UpdateState.Available(release)
@@ -68,6 +73,8 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
             } catch (e: Exception) {
                 UpdateState.Failed("Не удалось проверить обновления: нет интернета или GitHub недоступен.")
             }
+            _state.value = result
+            if (download && result is UpdateState.Available) scope.launch { download(result.release) }
         }
     }
 
@@ -130,7 +137,7 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
     companion object {
         const val REPO = "kirdev07/PulseDeck-Mobile"
         private const val LAST_CHECK = "last_check"
-        private const val AUTO_HOURS = 6
+        private const val AUTO_HOURS = 1
 
         fun parse(json: String): Release? {
             val data = JSONObject(json)

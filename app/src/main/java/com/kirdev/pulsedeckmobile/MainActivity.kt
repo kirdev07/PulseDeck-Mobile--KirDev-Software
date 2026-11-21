@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun debugOpen(intent: android.content.Intent?) {
+        intent?.getStringExtra(com.kirdev.pulsedeckmobile.monitoring.Notices.EXTRA_ROUTE)
+            ?.takeIf { it in com.kirdev.pulsedeckmobile.monitoring.Notices.ROUTES }?.let { app.debugOpen.value = it }
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
         intent?.getStringExtra("open")?.let { app.debugOpen.value = it }
         // Debug builds only, for screenshots of the landscape layout: --es orientation landscape|portrait|auto

@@ -107,6 +107,12 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
 
     // A pending shutdown is shown with its countdown; checked every 5 s only on this screen, ticking in between.
     PollWhileVisible(5_000, connected) { if (connected) timer = api.powerTimer() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(timer != null, timer?.action) {
+        val t = timer
+        if (t == null) com.kirdev.pulsedeckmobile.monitoring.Notices.clearPower(context)
+        else com.kirdev.pulsedeckmobile.monitoring.Notices.power(context, t.action == "restart", t.seconds)
+    }
     LaunchedEffect(timer) {
         val t = timer ?: return@LaunchedEffect
         delay(1000)

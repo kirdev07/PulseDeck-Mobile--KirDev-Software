@@ -140,7 +140,7 @@ private fun Main(app: PulseDeskApp, messages: SnackbarHostState) {
     Scaffold(
         containerColor = Palette.Black,
         snackbarHost = {
-            SnackbarHost(messages) { Snackbar(it, containerColor = Palette.Text, contentColor = Palette.Black, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) }
+            SnackbarHost(messages) { Snackbar(it, containerColor = Palette.Text, contentColor = Palette.Black, actionColor = Palette.Container, shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) }
         },
         bottomBar = {
             if (!landscape) Column(Modifier.windowInsetsPadding(sideInsets)) {

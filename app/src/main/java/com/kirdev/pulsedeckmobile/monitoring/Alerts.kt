@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.kirdev.pulsedeckmobile.MainActivity
 import com.kirdev.pulsedeckmobile.R
@@ -103,6 +102,13 @@ class AlertCenter(
     private var pcName = ""
     private var offlineJob: Job? = null
 
+    /** The newest warning while the app is on screen: drawn as the banner at the top (AppOverlays). */
+    data class Banner(val text: String, val key: String, val at: Long = SystemClock.elapsedRealtime())
+    private val _banner = MutableStateFlow<Banner?>(null)
+    val banner: StateFlow<Banner?> = _banner.asStateFlow()
+
+    fun dismissBanner() { _banner.value = null }
+
     init {
         scope.launch {
             connection.metrics.collect { m ->
@@ -145,35 +151,15 @@ class AlertCenter(
     }
 
     private fun notice(text: String, key: String) {
-        if (visible.value) Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+        if (Notices.quiet) return
+        if (visible.value) _banner.value = Banner(text, key)
         if (settings.values.value.notify) show(context, "PulseDeck · ${pcName.ifBlank { "ПК" }}", text, key)
     }
 
     companion object {
-        private const val CHANNEL = "alerts"
-
         fun allowed(context: Context): Boolean = Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-        fun show(context: Context, title: String, text: String, key: String) {
-            if (!allowed(context)) return
-            val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Предупреждения", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Нагрузка ПК выше порога, мало места, нет связи с ПК."
-                },
-            )
-            val open = PendingIntent.getActivity(context, 0,
-                Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            manager.notify(2000 + key.hashCode().mod(1000), NotificationCompat.Builder(context, CHANNEL)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .setContentIntent(open)
-                .setAutoCancel(true)
-                .build())
-        }
+        fun show(context: Context, title: String, text: String, key: String) = Notices.alert(context, title, text, key)
     }
 }

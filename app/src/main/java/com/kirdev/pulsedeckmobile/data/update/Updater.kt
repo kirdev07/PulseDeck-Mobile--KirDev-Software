@@ -109,7 +109,10 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
                         }
                     }
                 }
-                UpdateState.Ready(release, file).also { install(it.file) }
+                UpdateState.Ready(release, file).also {
+                    com.kirdev.pulsedeckmobile.monitoring.Notices.update(context, release.version)
+                    install(it.file)
+                }
             } catch (e: Exception) {
                 UpdateState.Failed("Не удалось скачать обновление. Попробуйте ещё раз.")
             }

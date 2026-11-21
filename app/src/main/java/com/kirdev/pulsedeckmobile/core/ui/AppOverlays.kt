@@ -52,6 +52,7 @@ import com.kirdev.pulsedeckmobile.data.update.UpdateState
 @Composable
 fun AppOverlays(app: PulseDeskApp) {
     LocalNetworkGate(app)
+    AlertBanner(app)
     UpdatePrompt(app)
 }
 

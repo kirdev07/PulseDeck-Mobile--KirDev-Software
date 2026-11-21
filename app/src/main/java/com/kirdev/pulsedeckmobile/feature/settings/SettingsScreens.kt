@@ -191,6 +191,16 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
                     prefs.animations) { on -> set { it.copy(animations = on) } }
                 Toggle("Ползунок волной", "Полоса времени трека волной, пока он играет.", prefs.waveSeek) { on -> set { it.copy(waveSeek = on) } }
             }
+            SectionTitle("Частота кадров")
+            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            val top = com.kirdev.pulsedeckmobile.core.ui.Frames.maxRate(activity?.display)
+            val names = mapOf("auto" to "Как в системе", "eco" to "Экономно · 60", "max" to "Максимум · $top Гц")
+            Chips(listOf("auto", "eco") + (if (top > 60) listOf("max") else emptyList()), prefs.frameRate,
+                { names[it].orEmpty() }) { v -> set { it.copy(frameRate = v) } }
+            Spacer(Modifier.height(6.dp))
+            Text("Экономно — экран переключается на 60 Гц и меньше тратит батарею. Максимум — самая плавная прокрутка и анимации. " +
+                "Некоторые оболочки (например, MIUI) держат свою частоту из настроек телефона.",
+                fontSize = 12.sp, color = Palette.Text2, modifier = Modifier.padding(horizontal = 4.dp))
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -201,6 +211,14 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
 private fun Alerts(prefs: Prefs, update: ((Prefs) -> Prefs) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var allowed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AlertCenter.allowed(context)) }
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        allowed = granted
+        val activity = context as? android.app.Activity
+        if (!granted && activity != null && !activity.shouldShowRequestPermissionRationale(android.Manifest.permission.POST_NOTIFICATIONS)) {
+            openNotificationSettings(context)
+        }
+    }
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {      // back from the system settings
         allowed = AlertCenter.allowed(context)
         onPauseOrDispose { }
@@ -217,13 +235,19 @@ private fun Alerts(prefs: Prefs, update: ((Prefs) -> Prefs) -> Unit) {
             if (allowed) "Предупреждения приходят и в шторку телефона." else "Android не разрешает уведомления PulseDesk. Нажмите, чтобы разрешить.",
             prefs.notify && allowed) { on ->
             if (on && !allowed) {
-                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                // Android's own question first; once it no longer shows (denied twice), the app's settings.
+                if (android.os.Build.VERSION.SDK_INT >= 33) ask.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                else openNotificationSettings(context)
             }
             update { it.copy(notify = on) }
         }
     }
+}
+
+private fun openNotificationSettings(context: android.content.Context) {
+    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 @Composable

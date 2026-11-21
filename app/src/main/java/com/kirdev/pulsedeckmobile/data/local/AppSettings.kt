@@ -26,6 +26,8 @@ data class Prefs(
     val remoteVolume: Boolean = true,
     /** The seek bar as a wave while a track plays (as in Android / One UI). */
     val waveSeek: Boolean = true,
+    /** «auto» / «eco» (60) / «max» (the display's top rate): core/ui/Frames.kt. */
+    val frameRate: String = "auto",
     /** «Предупреждения»: a notice when a value stays past its limit. */
     val alerts: Boolean = true,
     /** …also as a system notification. */
@@ -56,6 +58,7 @@ class AppSettings(context: Context) {
             .putBoolean("media_notification", next.mediaNotification)
             .putBoolean("remote_volume", next.remoteVolume)
             .putBoolean("wave_seek", next.waveSeek)
+            .putString("frame_rate", next.frameRate)
             .putBoolean("alerts", next.alerts)
             .putBoolean("notify", next.notify)
             .putBoolean("alert_offline", next.alertOffline)
@@ -81,6 +84,7 @@ class AppSettings(context: Context) {
         mediaNotification = prefs.getBoolean("media_notification", true),
         remoteVolume = prefs.getBoolean("remote_volume", true),
         waveSeek = prefs.getBoolean("wave_seek", true),
+        frameRate = prefs.getString("frame_rate", null) ?: "auto",
         alerts = prefs.getBoolean("alerts", true),
         notify = prefs.getBoolean("notify", false),
         alertOffline = prefs.getBoolean("alert_offline", true),

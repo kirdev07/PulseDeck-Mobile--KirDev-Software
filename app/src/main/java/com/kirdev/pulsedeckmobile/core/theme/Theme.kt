@@ -124,6 +124,30 @@ object Palette {
     val ErrorContainer get() = roles.ec
     val OnErrorContainer get() = roles.oec
     val Ok get() = if (roles.dark) Color(0xFF7BD88F) else Color(0xFF1E7A35)
+
+    /** «Чёрно-белый» style: the coloured icon badges turn tonal too. */
+    var mono by mutableStateOf(false)
+}
+
+/** Colour families of the round icon badges (settings, files, menu tiles), dark and light. */
+enum class Tone(private val dark: Pair<Long, Long>, private val light: Pair<Long, Long>) {
+    Pink(0xFF5A2440 to 0xFFF2B8D0, 0xFFFFD8E8 to 0xFF5A2440),
+    Blue(0xFF21385E to 0xFFAFC6FF, 0xFFD8E2FF to 0xFF21385E),
+    Teal(0xFF1F4A3F to 0xFF9CD3C7, 0xFFCDEDE4 to 0xFF1F4A3F),
+    Amber(0xFF5A4300 to 0xFFF5D27A, 0xFFFFE08A to 0xFF3E2E00),
+    Violet(0L to 0L, 0L to 0L),
+    Red(0L to 0L, 0L to 0L);
+
+    val bg: Color get() = when {
+        this == Violet || Palette.mono -> Palette.Tonal
+        this == Red -> Palette.ErrorContainer
+        else -> Color(if (Palette.roles.dark) dark.first else light.first)
+    }
+    val fg: Color get() = when {
+        this == Violet || Palette.mono -> Palette.OnTonal
+        this == Red -> Palette.OnErrorContainer
+        else -> Color(if (Palette.roles.dark) dark.second else light.second)
+    }
 }
 
 /** Monospace digits keep numbers from jumping while they change. */
@@ -137,6 +161,8 @@ fun PulseDeskTheme(prefs: Prefs, content: @Composable () -> Unit) {
     // Written here so the screens below read the new roles in this same pass; compared without
     // observing, so the theme does not recompose itself once more.
     if (androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { Palette.roles } != roles) Palette.roles = roles
+    val mono = prefs.style == "mono"
+    if (androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { Palette.mono } != mono) Palette.mono = mono
     val view = LocalView.current
     SideEffect {                                   // dark icons on the status bar in the light theme
         (view.context as? Activity)?.window?.let { window ->

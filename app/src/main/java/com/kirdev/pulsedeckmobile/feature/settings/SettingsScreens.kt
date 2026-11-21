@@ -34,7 +34,8 @@ import com.kirdev.pulsedeckmobile.BuildConfigInfo
 import com.kirdev.pulsedeckmobile.PulseDeskApp
 import com.kirdev.pulsedeckmobile.core.theme.Palette
 import com.kirdev.pulsedeckmobile.core.ui.AppIcons
-import com.kirdev.pulsedeckmobile.core.ui.ListRow
+import com.kirdev.pulsedeckmobile.core.ui.enter
+import com.kirdev.pulsedeckmobile.core.theme.Tone
 import com.kirdev.pulsedeckmobile.core.ui.currentDisplay
 import com.kirdev.pulsedeckmobile.core.ui.PanelCard
 import com.kirdev.pulsedeckmobile.core.ui.PanelSwitch
@@ -58,41 +59,42 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
         ScreenHeader("Настройки", onBack)
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             SectionTitle("Подключение")
-            PanelCard(Modifier.fillMaxWidth()) {
-                ListRow(AppIcons.Devices, "Компьютеры", "Сохранённые ПК, переключение, новый ПК", chevron = true, onClick = { go(Routes.DEVICES) })
-                ListRow(AppIcons.Usb, "USB-кабель", "Включите «Отладку по USB» — PulseDeck сам переключит связь на кабель")
+            PanelCard(Modifier.fillMaxWidth().enter(0)) {
+                SettingRow(AppIcons.Devices, Tone.Teal, "Компьютеры", "Сохранённые ПК, переключение, новый ПК", onClick = { go(Routes.DEVICES) })
+                SettingRow(AppIcons.Usb, Tone.Blue, "USB-кабель", "Включите «Отладку по USB» — PulseDeck сам переключит связь на кабель")
             }
 
             SectionTitle("Мониторинг")
-            PanelCard(Modifier.fillMaxWidth()) {
-                Text("Частота обновления", fontSize = 14.sp, color = Palette.Text)
-                Text("Реже — меньше нагрузка на ПК и батарею. В фоне показатели не запрашиваются.", fontSize = 12.sp, color = Palette.Text3)
-                Spacer(Modifier.height(8.dp))
+            PanelCard(Modifier.fillMaxWidth().enter(1)) {
+                SettingRow(AppIcons.Pulse, Tone.Blue, "Частота обновления", "Реже — меньше нагрузка на ПК и батарею. В фоне показатели не запрашиваются.")
+                Spacer(Modifier.height(4.dp))
                 Chips(listOf(1.0, 1.5, 3.0, 5.0, 10.0), prefs.intervalSeconds, Format::seconds) { v -> update { it.copy(intervalSeconds = v) } }
             }
 
             SectionTitle("Музыка")
-            PanelCard(Modifier.fillMaxWidth()) {
+            PanelCard(Modifier.fillMaxWidth().enter(2)) {
                 Toggle("Карточка в шторке", "Обложка и кнопки на экране блокировки, пока на ПК играет трек. Без трека карточки нет.",
-                    prefs.mediaNotification) { on -> update { it.copy(mediaNotification = on) } }
+                    prefs.mediaNotification, AppIcons.Music, Tone.Pink) { on -> update { it.copy(mediaNotification = on) } }
                 Toggle("Громкость кнопками телефона", "Кнопки громкости меняют звук ПК, пока трек играет (не на паузе).",
-                    prefs.remoteVolume) { on -> update { it.copy(remoteVolume = on) } }
+                    prefs.remoteVolume, AppIcons.Volume, Tone.Pink) { on -> update { it.copy(remoteVolume = on) } }
                 Toggle("Ползунок волной", "Полоса времени трека волной, пока он играет, — как в плеере Android и One UI.",
-                    prefs.waveSeek) { on -> update { it.copy(waveSeek = on) } }
+                    prefs.waveSeek, AppIcons.Pulse, Tone.Pink) { on -> update { it.copy(waveSeek = on) } }
             }
 
             SectionTitle("Предупреждения")
             Alerts(prefs, update)
 
             SectionTitle("Интерфейс")
-            PanelCard(Modifier.fillMaxWidth()) {
-                ListRow(AppIcons.Palette, "Оформление", (if (prefs.style == "mono") "Чёрно-белый" else "Цветной") + ", " +
-                    mapOf("dark" to "тёмная", "light" to "светлая", "system" to "как в системе")[prefs.mode].orEmpty(), chevron = true,
+            PanelCard(Modifier.fillMaxWidth().enter(3)) {
+                SettingRow(AppIcons.Palette, Tone.Violet, "Оформление", (if (prefs.style == "mono") "Чёрно-белый" else "Цветной") + ", " +
+                    mapOf("dark" to "тёмная", "light" to "светлая", "system" to "как в системе")[prefs.mode].orEmpty(),
                     onClick = { go(Routes.APPEARANCE) })
             }
 
             SectionTitle("Безопасность")
-            PanelCard(Modifier.fillMaxWidth()) {
+            PanelCard(Modifier.fillMaxWidth().enter(4)) {
+                SettingRow(AppIcons.Lock, Tone.Teal, "Защищённая связь", "TLS, ключ в Android Keystore")
+                Spacer(Modifier.height(6.dp))
                 Text("Связь только по TLS с проверкой сертификата ПК. Ключ доступа хранится зашифрованным (Android Keystore). " +
                     "Выключение, перезагрузка, сон, завершение процессов и удаление файлов всегда спрашивают подтверждение. " +
                     "Права телефона («полный доступ» или «только просмотр») задаются на ПК: PulseDeck → «Телефон».",
@@ -100,9 +102,8 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
             }
 
             SectionTitle("О приложении")
-            PanelCard(Modifier.fillMaxWidth()) {
-                Text("PulseDesk ${BuildConfigInfo.version(app)}", fontSize = 14.sp, color = Palette.Text)
-                Text("Клиент PulseDeck для Windows · KiroX Systems", fontSize = 12.sp, color = Palette.Text3)
+            PanelCard(Modifier.fillMaxWidth().enter(5)) {
+                SettingRow(AppIcons.Info, Tone.Violet, "PulseDesk ${BuildConfigInfo.version(app)}", "Клиент PulseDeck для Windows · KiroX Systems")
             }
 
             SectionTitle("Обновления")
@@ -236,15 +237,15 @@ private fun Alerts(prefs: Prefs, update: ((Prefs) -> Prefs) -> Unit) {
     }
     PanelCard(Modifier.fillMaxWidth()) {
         Toggle("Сообщать о нагрузке", "Если значение держится за порогом 10 секунд. Диск и батарея ПК — когда осталось меньше порога. " +
-            "Показатели приходят, пока приложение открыто.", prefs.alerts) { on -> update { it.copy(alerts = on) } }
+            "Показатели приходят, пока приложение открыто.", prefs.alerts, AppIcons.Bell, Tone.Red) { on -> update { it.copy(alerts = on) } }
         if (prefs.alerts) {
             for (limit in Limit.entries) LimitRow(limit, prefs.limit(limit)) { v -> update { it.copy(limits = it.limits + (limit to v)) } }
         }
         Toggle("Сообщать, если пропала связь", "Через 30 секунд без связи с ПК — и в фоне, пока в шторке карточка трека.",
-            prefs.alertOffline) { on -> update { it.copy(alertOffline = on) } }
+            prefs.alertOffline, AppIcons.Link, Tone.Pink) { on -> update { it.copy(alertOffline = on) } }
         Toggle("Системные уведомления",
             if (allowed) "Предупреждения приходят и в шторку телефона." else "Android не разрешает уведомления PulseDesk. Нажмите, чтобы разрешить.",
-            prefs.notify && allowed) { on ->
+            prefs.notify && allowed, AppIcons.Bell, Tone.Amber) { on ->
             if (on && !allowed) {
                 // Android's own question first; once it no longer shows (denied twice), the app's settings.
                 if (android.os.Build.VERSION.SDK_INT >= 33) ask.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -298,7 +299,7 @@ private fun Updates(app: PulseDeskApp) {
     }
     val notes = (state as? UpdateState.Available)?.release?.notes.orEmpty().replace("**", "").replace("`", "").trim()
     PanelCard(Modifier.fillMaxWidth()) {
-        Text(text, fontSize = 14.sp, color = Palette.Text)
+        SettingRow(AppIcons.Download, Tone.Blue, text, null)
         if (notes.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
             Text(notes.take(600), fontSize = 12.sp, color = Palette.Text2, lineHeight = 17.sp)
@@ -312,13 +313,46 @@ private fun Updates(app: PulseDeskApp) {
 }
 
 @Composable
-private fun Toggle(title: String, text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Toggle(
+    title: String, text: String, checked: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    tone: Tone = Tone.Violet, onChange: (Boolean) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { onChange(!checked) }.padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            Badge(icon, tone)
+            Spacer(Modifier.size(14.dp))
+        }
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, fontSize = 14.sp, color = Palette.Text)
             Text(text, fontSize = 12.sp, color = Palette.Text3)
         }
         PanelSwitch(checked, onChange)
+    }
+}
+
+/** A round coloured badge in front of a setting (approved «Настройки» mockup). */
+@Composable
+private fun Badge(icon: androidx.compose.ui.graphics.vector.ImageVector, tone: Tone) {
+    Box(Modifier.size(38.dp).clip(CircleShape).background(tone.bg), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(icon, null, tint = tone.fg, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** A setting that opens something or only tells: badge, title, text, a chevron when it opens. */
+@Composable
+private fun SettingRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector, tone: Tone, title: String, text: String?, onClick: (() -> Unit)? = null,
+) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Badge(icon, tone)
+        Spacer(Modifier.size(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, color = Palette.Text)
+            if (!text.isNullOrBlank()) Text(text, fontSize = 12.sp, color = Palette.Text3)
+        }
+        if (onClick != null) androidx.compose.material3.Icon(AppIcons.Chevron, null, tint = Palette.Text3, modifier = Modifier.size(18.dp))
     }
 }
 

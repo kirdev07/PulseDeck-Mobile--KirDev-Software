@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import com.kirdev.pulsedeckmobile.core.theme.PulseDeskTheme
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kirdev.pulsedeckmobile.core.ui.AppOverlays
 import com.kirdev.pulsedeckmobile.navigation.AppNavigation
 
@@ -25,7 +27,8 @@ class MainActivity : ComponentActivity() {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
         setContent {
-            PulseDeskTheme {
+            val prefs by app.settings.values.collectAsStateWithLifecycle()
+            PulseDeskTheme(prefs) {
                 Box(Modifier.fillMaxSize()) {
                     AppNavigation(app)
                     AppOverlays(app)          // local network permission (Android 17), update prompt

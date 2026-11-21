@@ -137,9 +137,7 @@ fun MonitoringScreen(app: PulseDeskApp) {
 
 @Composable
 private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
-    Text(text, fontSize = 13.sp, color = if (selected) Palette.Black else Palette.Text2,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (selected) Palette.accent else Palette.Surface)
-            .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp))
+    com.kirdev.pulsedeckmobile.core.ui.ChoiceChip(text, selected, onClick = onClick)
 }
 
 @Composable
@@ -147,10 +145,10 @@ private fun Headline(title: String, subtitle: String, value: String) {
     PanelCard(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 15.sp, color = Palette.Text)
-                Text(subtitle, fontSize = 12.sp, color = Palette.Text3)
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
+                Text(subtitle, fontSize = 13.sp, color = Palette.Text2)
             }
-            Text(value, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
+            Text(value, fontSize = 36.sp, fontWeight = FontWeight.Normal, color = Palette.accent)
         }
     }
 }

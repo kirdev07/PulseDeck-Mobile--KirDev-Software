@@ -1,15 +1,20 @@
 package com.kirdev.pulsedeckmobile.data.local
 
 import android.content.Context
-import com.kirdev.pulsedeckmobile.core.theme.AppTheme
 import com.kirdev.pulsedeckmobile.monitoring.Limit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class Prefs(
-    val theme: AppTheme = AppTheme.AMOLED,
-    val accent: Int = 0,
+    /** «color» (Material 3) or «mono» (the black-and-white look of PulseDesk 1.0). */
+    val style: String = "color",
+    /** «dark», «light» or «system». */
+    val mode: String = "dark",
+    /** purple / blue / green / orange / pink, or «wallpaper» (Material You, Android 12+). */
+    val accentKey: String = "purple",
+    /** Pure black background in the dark theme (OLED screens). */
+    val amoled: Boolean = false,
     /** Wave and screen transitions; the system «remove animations» setting also turns them off. */
     val animations: Boolean = true,
     val compact: Boolean = false,
@@ -41,8 +46,10 @@ class AppSettings(context: Context) {
     fun update(change: (Prefs) -> Prefs) {
         val next = change(_prefs.value).let { it.copy(intervalSeconds = it.intervalSeconds.coerceIn(1.0, 10.0)) }
         prefs.edit()
-            .putString("theme", next.theme.name)
-            .putInt("accent", next.accent)
+            .putString("style", next.style)
+            .putString("mode", next.mode)
+            .putString("accent_key", next.accentKey)
+            .putBoolean("amoled", next.amoled)
             .putBoolean("animations", next.animations)
             .putBoolean("compact", next.compact)
             .putFloat("interval", next.intervalSeconds.toFloat())
@@ -60,8 +67,11 @@ class AppSettings(context: Context) {
     }
 
     private fun read() = Prefs(
-        theme = runCatching { AppTheme.valueOf(prefs.getString("theme", null) ?: "") }.getOrDefault(AppTheme.AMOLED),
-        accent = prefs.getInt("accent", 0),
+        style = prefs.getString("style", null) ?: "color",
+        mode = prefs.getString("mode", null) ?: "dark",
+        accentKey = prefs.getString("accent_key", null) ?: "purple",
+        // 1.0.x had «AMOLED» and «Graphite» themes: AMOLED carries over as the black background.
+        amoled = if (prefs.contains("amoled")) prefs.getBoolean("amoled", false) else prefs.getString("theme", "AMOLED") == "AMOLED",
         animations = prefs.getBoolean("animations", true),
         compact = prefs.getBoolean("compact", false),
         intervalSeconds = prefs.getFloat("interval", 1.5f).toDouble(),

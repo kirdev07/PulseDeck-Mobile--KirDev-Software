@@ -1,8 +1,6 @@
 package com.kirdev.pulsedeckmobile
 
 import android.app.Application
-import com.kirdev.pulsedeckmobile.core.theme.Accents
-import com.kirdev.pulsedeckmobile.core.theme.Palette
 import com.kirdev.pulsedeckmobile.data.local.AppSettings
 import com.kirdev.pulsedeckmobile.data.local.PairingStore
 import com.kirdev.pulsedeckmobile.data.remote.PcApi
@@ -50,8 +48,6 @@ class PulseDeskApp : Application() {
 
         scope.launch {
             settings.values.collect {
-                Palette.theme = it.theme
-                Palette.accent = Accents.getOrElse(it.accent) { Accents.first() }
                 connection.setInterval(it.intervalSeconds)
             }
         }

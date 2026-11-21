@@ -1,6 +1,8 @@
 package com.kirdev.pulsedeckmobile.feature.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -123,50 +125,73 @@ private fun PcCard(state: ConnectionState, activity: PcActivity?, onClick: () ->
         is ConnectionState.CertificateChanged -> Triple(state.pc.name, "Сертификат ПК изменился — подключите заново", false)
         else -> Triple("ПК", "Не подключён", false)
     }
-    PanelCard(Modifier.fillMaxWidth(), onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(AppIcons.Monitor, null, tint = Palette.Text, modifier = Modifier.size(40.dp))
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 1,
-                    overflow = TextOverflow.Ellipsis)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(if (live) Palette.Text else Palette.Disabled))
-                    Spacer(Modifier.width(6.dp))
-                    Text(status, fontSize = 12.sp, color = Palette.Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (live && activity != null) {
-                    val title = activity.title.takeIf { it.isNotBlank() && it != activity.app }?.let { " — $it" }.orEmpty()
-                    Text((if (activity.fullscreen) "На весь экран: " else "Сейчас: ") + activity.app + title,
-                        fontSize = 12.sp, color = Palette.Text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            Icon(AppIcons.Chevron, null, tint = Palette.Text3, modifier = Modifier.size(18.dp))
+    // Material 3: the main card in the primary container, its icon in the primary colour.
+    val bg = if (live) Palette.Container else Palette.Surface
+    val fg = if (live) Palette.OnContainer else Palette.Text
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(bg).clickable(onClick = onClick)
+            .padding(start = 18.dp, end = 14.dp, top = 18.dp, bottom = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(if (live) Palette.accent else Palette.Track),
+            contentAlignment = Alignment.Center) {
+            Icon(AppIcons.Monitor, null, tint = if (live) Palette.onAccent else Palette.Text2, modifier = Modifier.size(30.dp))
         }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(if (live) Palette.Ok else Palette.Disabled))
+                Spacer(Modifier.width(6.dp))
+                Text(status, fontSize = 13.sp, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (live && activity != null) {
+                val title = activity.title.takeIf { it.isNotBlank() && it != activity.app }?.let { " — $it" }.orEmpty()
+                Text((if (activity.fullscreen) "На весь экран: " else "Сейчас: ") + activity.app + title,
+                    fontSize = 13.sp, color = fg.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Icon(AppIcons.Chevron, null, tint = fg, modifier = Modifier.size(20.dp))
     }
 }
 
+/** A key number as a ring (Material 3 circular indicator), its name and a short caption. */
 @Composable
 private fun Tile(title: String, value: String, caption: String?, fraction: Float, modifier: Modifier, onClick: () -> Unit) {
-    PanelCard(modifier, onClick = onClick) {
-        Text(title, fontSize = 11.sp, color = Palette.Text3)
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
-        Text(caption ?: " ", fontSize = 10.sp, color = Palette.Text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.size(6.dp))
-        ThinProgress(fraction, Modifier.fillMaxWidth())
+    val ink = Palette.accent
+    val track = Palette.Track
+    Column(
+        modifier.clip(RoundedCornerShape(20.dp)).background(Palette.Surface).clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Canvas(Modifier.size(72.dp)) {
+                val stroke = 7.dp.toPx()
+                val inset = stroke / 2
+                val arc = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                val topLeft = androidx.compose.ui.geometry.Offset(inset, inset)
+                drawArc(track, 0f, 360f, false, topLeft, arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+                if (fraction > 0f) drawArc(ink, -90f, 360f * fraction.coerceIn(0f, 1f), false, topLeft, arc,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            Text(value, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
+        }
+        Spacer(Modifier.size(8.dp))
+        Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
+        Text(caption ?: " ", fontSize = 11.sp, color = Palette.Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 private fun SmallStat(icon: ImageVector, top: String, bottom: String, modifier: Modifier) {
-    PanelCard(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = Palette.Text2, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text(top, fontSize = 13.sp, color = Palette.Text, maxLines = 1)
-                Text(bottom, fontSize = 12.sp, color = Palette.Text3, maxLines = 1)
-            }
+    Row(modifier.clip(RoundedCornerShape(20.dp)).background(Palette.Surface).padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        com.kirdev.pulsedeckmobile.core.ui.IconBadge(icon)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(top, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 1)
+            Text(bottom, fontSize = 12.sp, color = Palette.Text2, maxLines = 1)
         }
     }
 }

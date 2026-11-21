@@ -32,8 +32,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kirdev.pulsedeckmobile.BuildConfigInfo
 import com.kirdev.pulsedeckmobile.PulseDeskApp
-import com.kirdev.pulsedeckmobile.core.theme.Accents
-import com.kirdev.pulsedeckmobile.core.theme.AppTheme
 import com.kirdev.pulsedeckmobile.core.theme.Palette
 import com.kirdev.pulsedeckmobile.core.ui.AppIcons
 import com.kirdev.pulsedeckmobile.core.ui.ListRow
@@ -87,7 +85,9 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
 
             SectionTitle("Интерфейс")
             PanelCard(Modifier.fillMaxWidth()) {
-                ListRow(AppIcons.Brush, "Оформление", "${prefs.theme.title}, анимации", chevron = true, onClick = { go(Routes.APPEARANCE) })
+                ListRow(AppIcons.Palette, "Оформление", (if (prefs.style == "mono") "Чёрно-белый" else "Цветной") + ", " +
+                    mapOf("dark" to "тёмная", "light" to "светлая", "system" to "как в системе")[prefs.mode].orEmpty(), chevron = true,
+                    onClick = { go(Routes.APPEARANCE) })
             }
 
             SectionTitle("Безопасность")
@@ -111,45 +111,84 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
     }
 }
 
-/** Screen 13: theme, accent, animations, with a live preview. */
+/** Screen 13: style, theme, colour, AMOLED, animations — with a live preview (Material 3 mockups). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
     val prefs by app.settings.values.collectAsStateWithLifecycle()
+    val set: ((Prefs) -> Prefs) -> Unit = app.settings::update
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader("Оформление", onBack)
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            SectionTitle("Тема")
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (theme in AppTheme.entries) {
-                    val selected = theme == prefs.theme
-                    Column(
-                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(theme.surface)
-                            .border(if (selected) 2.dp else 1.dp, if (selected) Palette.accent else theme.border, RoundedCornerShape(16.dp))
-                            .clickable { app.settings.update { it.copy(theme = theme) } }.padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(10.dp)).background(theme.black),
-                            contentAlignment = Alignment.Center) { KiroXMotion(animate = false) }
-                        Spacer(Modifier.height(8.dp))
-                        Text(theme.title, fontSize = 13.sp, color = Palette.Text)
+            // Live preview: the card, a bar and the buttons in the chosen colours.
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Palette.Surface).padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(Palette.Container), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(AppIcons.Monitor, null, tint = Palette.OnContainer, modifier = Modifier.size(30.dp))
+                }
+                Spacer(Modifier.size(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("DESKTOP-PC", fontSize = 15.sp, color = Palette.Text)
+                    com.kirdev.pulsedeckmobile.core.ui.ThinProgress(0.62f, Modifier.fillMaxWidth())
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.height(22.dp).size(54.dp, 22.dp).clip(RoundedCornerShape(6.dp)).background(Palette.Tonal))
+                        Box(Modifier.size(40.dp, 22.dp).clip(RoundedCornerShape(11.dp)).background(Palette.accent))
                     }
                 }
             }
-            SectionTitle("Цвет акцента")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Accents.forEachIndexed { index, color ->
-                    Box(Modifier.size(40.dp).clip(CircleShape).background(color)
-                        .border(if (index == prefs.accent) 3.dp else 0.dp, Palette.Text2, CircleShape)
-                        .clickable { app.settings.update { it.copy(accent = index) } })
-                }
+
+            SectionTitle("Стиль")
+            com.kirdev.pulsedeckmobile.core.ui.Segmented(listOf("color" to "Цветной", "mono" to "Чёрно-белый"), prefs.style) { v ->
+                set { it.copy(style = v) }
             }
-            SectionTitle("Анимации")
-            PanelCard(Modifier.fillMaxWidth()) {
-                Toggle("Анимации", "Волна и плавные переходы. Если в Android анимации выключены, они выключены и здесь.",
-                    prefs.animations) { on -> app.settings.update { it.copy(animations = on) } }
-                Spacer(Modifier.height(10.dp))
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { KiroXMotion(animate = prefs.animations) }
+            SectionTitle("Тема")
+            com.kirdev.pulsedeckmobile.core.ui.Segmented(listOf("dark" to "Тёмная", "light" to "Светлая", "system" to "Как в системе"),
+                prefs.mode) { v -> set { it.copy(mode = v) } }
+
+            if (prefs.style != "mono") {
+                SectionTitle("Цвет")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (android.os.Build.VERSION.SDK_INT >= 31) {
+                        // Material You: four quarters hint at «from the wallpaper».
+                        val on = prefs.accentKey == "wallpaper"
+                        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp))
+                            .border(if (on) 3.dp else 0.dp, if (on) Palette.Text else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(16.dp))
+                            .clickable { set { it.copy(accentKey = "wallpaper") } }) {
+                            Column(Modifier.fillMaxSize()) {
+                                Row(Modifier.weight(1f)) {
+                                    Box(Modifier.weight(1f).fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFFC2A5F9)))
+                                    Box(Modifier.weight(1f).fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFFF5B8C4)))
+                                }
+                                Row(Modifier.weight(1f)) {
+                                    Box(Modifier.weight(1f).fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF9CD3C7)))
+                                    Box(Modifier.weight(1f).fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFFF2CB86)))
+                                }
+                            }
+                        }
+                    }
+                    for ((key, _, color) in com.kirdev.pulsedeckmobile.core.theme.AccentChoices) {
+                        val on = prefs.accentKey == key
+                        Box(Modifier.size(52.dp).clip(CircleShape)
+                            .border(3.dp, if (on) Palette.Text else androidx.compose.ui.graphics.Color.Transparent, CircleShape)
+                            .padding(5.dp).clip(CircleShape).background(color)
+                            .clickable { set { it.copy(accentKey = key) } })
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(when (prefs.accentKey) {
+                    "wallpaper" -> "Цвета ваших обоев (Material You)."
+                    else -> com.kirdev.pulsedeckmobile.core.theme.AccentChoices.firstOrNull { it.first == prefs.accentKey }?.second.orEmpty()
+                }, fontSize = 12.sp, color = Palette.Text2, modifier = Modifier.padding(start = 4.dp))
+            }
+
+            SectionTitle("Экран")
+            PanelCard(Modifier.fillMaxWidth(), color = Palette.roles.s1) {
+                Toggle("Чёрный фон AMOLED", "В тёмной теме — чистый чёрный: экономит заряд на OLED-экранах.", prefs.amoled) { on ->
+                    set { it.copy(amoled = on) }
+                }
+                Toggle("Анимации", "Волна, переходы, полоски «играет». Если в Android анимации выключены, они выключены и здесь.",
+                    prefs.animations) { on -> set { it.copy(animations = on) } }
+                Toggle("Ползунок волной", "Полоса времени трека волной, пока он играет.", prefs.waveSeek) { on -> set { it.copy(waveSeek = on) } }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -230,7 +269,7 @@ private fun Updates(app: PulseDeskApp) {
         }
         if (action != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = action.second) { Text(action.first, color = Palette.accent) }
+                TextButton(onClick = action.second) { Text(action.first, color = Palette.accent, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
             }
         }
     }
@@ -253,9 +292,7 @@ private fun <T> Chips(options: List<T>, selected: T, label: (T) -> String, onCli
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (option in options) {
             val on = option == selected
-            Text(label(option), fontSize = 13.sp, color = if (on) Palette.Black else Palette.Text2,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Palette.accent else Palette.Surface2)
-                    .clickable { onClick(option) }.padding(horizontal = 14.dp, vertical = 7.dp))
+            com.kirdev.pulsedeckmobile.core.ui.ChoiceChip(label(option), on) { onClick(option) }
         }
     }
 }

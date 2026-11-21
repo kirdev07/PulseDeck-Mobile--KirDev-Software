@@ -1,5 +1,6 @@
 package com.kirdev.pulsedeckmobile.feature.remote
 
+import androidx.compose.foundation.layout.Box
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -93,13 +94,13 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
                     val what = if (t.action == "restart") "Перезагрузка" else "Выключение"
                     Text("$what через ${t.seconds / 60} мин ${t.seconds % 60} с", fontSize = 15.sp, color = Palette.Text)
                     TextButton(onClick = { actions.run("Отменено") { api.cancelPower().also { timer = null } } }) {
-                        Text("Отменить", color = Palette.Text)
+                        Text("Отменить", color = Palette.accent, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Tile(AppIcons.Power, "Выключить", Modifier.weight(1f)) { power = Power.SHUTDOWN }
-                Tile(AppIcons.Restart, "Перезагрузить", Modifier.weight(1f)) { power = Power.RESTART }
+                Tile(AppIcons.Power, "Выключить", Modifier.weight(1f), Palette.ErrorContainer, Palette.OnErrorContainer) { power = Power.SHUTDOWN }
+                Tile(AppIcons.Restart, "Перезагрузить", Modifier.weight(1f), Palette.Container, Palette.OnContainer) { power = Power.RESTART }
                 Tile(AppIcons.Moon, "Сон", Modifier.weight(1f)) {
                     confirm = "Перевести ПК в сон? Связь с телефоном прервётся." to { actions.run("ПК засыпает") { api.sleep() } }
                 }
@@ -127,7 +128,8 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
                                 .clickable { actions.run { api.setMuted(!v.muted) } })
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            SeekBar(value, onDrag = { value = it }) { value = it; app.connection.send("volume", (it * 100).toInt()) }
+                            com.kirdev.pulsedeckmobile.core.ui.M3Slider(value, onMove = { value = it }, label = "Громкость ПК",
+                                onDone = { value = it; app.connection.send("volume", (it * 100).toInt()) })
                         }
                         Spacer(Modifier.width(10.dp))
                         Text(if (v.muted) "без звука" else "${(value * 100).toInt()}", style = Numbers.copy(color = Palette.Text3))
@@ -192,7 +194,7 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
             }
         }
     }
-    confirm?.let { (text, run) -> ConfirmDialog("Подтвердите", text, "Да", run) { confirm = null } }
+    confirm?.let { (text, run) -> ConfirmDialog("Подтвердите", text, "Да", run, danger = false) { confirm = null } }
     input?.let { (title, run) -> InputDialog(title, "", "Открыть", run) { input = null } }
     screenshot?.let { image ->
         // Full screen on black; a tap anywhere closes it.
@@ -206,36 +208,51 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
 /** Shutdown and restart: when, with an explicit confirmation. The PC allows cancelling. */
 @Composable
 private fun PowerDialog(kind: Power, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
-    val options = listOf(0 to "Через 10 секунд", 5 to "Через 5 минут", 15 to "Через 15 минут", 30 to "Через 30 минут", 60 to "Через час")
+    val options = listOf(0 to "Сейчас", 5 to "5 мин", 15 to "15 мин", 30 to "30 мин", 60 to "1 ч")
     var minutes by remember { mutableStateOf(0) }
     AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Palette.Surface2,
-        title = { Text("${kind.verb} ПК?", color = Palette.Text) },
+        onDismissRequest = onDismiss, containerColor = Palette.Surface2, shape = RoundedCornerShape(28.dp),
+        icon = { Icon(if (kind == Power.SHUTDOWN) AppIcons.Power else AppIcons.Restart, null, tint = Palette.Error) },
+        title = { Text("${kind.verb} ПК?", color = Palette.Text, fontSize = 24.sp) },
         text = {
-            Column {
-                Text("Несохранённые данные на ПК могут пропасть.", fontSize = 13.sp, color = Palette.Text2)
-                Spacer(Modifier.height(8.dp))
-                options.forEach { (value, label) ->
-                    Text((if (value == minutes) "●  " else "○  ") + label, fontSize = 14.sp,
-                        color = if (value == minutes) Palette.Text else Palette.Text2,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { minutes = value }
-                            .padding(vertical = 8.dp, horizontal = 4.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (minutes == 0) "Через 10 секунд. Несохранённые документы могут потеряться. Отменить можно здесь же."
+                    else "Через $minutes мин. Несохранённые документы могут потеряться. Отменить можно здесь же до срока.",
+                    fontSize = 14.sp, color = Palette.Text2, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(14.dp))
+                @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { (value, label) ->
+                        com.kirdev.pulsedeckmobile.core.ui.ChoiceChip(label, value == minutes) { minutes = value }
+                    }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onDismiss(); onConfirm(minutes) }) { Text(kind.verb, color = Palette.Text) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = Palette.Text2) } },
+        confirmButton = {
+            Box(Modifier.height(40.dp).clip(RoundedCornerShape(20.dp)).background(Palette.Error)
+                .clickable { onDismiss(); onConfirm(minutes) }.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+                Text(kind.verb, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = Palette.roles.onErr)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = Palette.accent, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) } },
     )
 }
 
+/** A big tonal button of the mockups: icon at the top, name at the bottom; colours by how risky it is. */
 @Composable
-private fun Tile(icon: ImageVector, title: String, modifier: Modifier, onClick: () -> Unit) {
-    PanelCard(modifier, onClick = onClick) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, tint = Palette.Text, modifier = Modifier.size(26.dp))
-            Spacer(Modifier.height(8.dp))
-            Text(title, fontSize = 12.sp, color = Palette.Text2, textAlign = TextAlign.Center, maxLines = 1)
-        }
+private fun Tile(
+    icon: ImageVector, title: String, modifier: Modifier,
+    bg: androidx.compose.ui.graphics.Color = Palette.Tonal, fg: androidx.compose.ui.graphics.Color = Palette.OnTonal, onClick: () -> Unit,
+) {
+    Column(
+        modifier.height(88.dp).clip(RoundedCornerShape(24.dp)).background(bg).clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Icon(icon, null, tint = fg, modifier = Modifier.size(26.dp))
+        Text(title, fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = fg, maxLines = 1,
+            softWrap = false)
     }
 }
 
@@ -253,8 +270,9 @@ private fun WindowRow(window: PcWindow, onAction: (String) -> Unit) {
         Text(window.title, fontSize = 13.sp, color = Palette.Text, maxLines = 1)
         Row {
             for ((action, label) in listOf("focus" to "Показать", "min" to "Свернуть", "max" to "Развернуть", "close" to "Закрыть")) {
-                Text(label, fontSize = 12.sp, color = Palette.Text2, modifier = Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(Palette.Surface2).clickable { onAction(action) }.padding(horizontal = 10.dp, vertical = 5.dp))
+                Text(label, fontSize = 12.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, color = Palette.OnTonal,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Palette.Tonal).clickable { onAction(action) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp))
                 Spacer(Modifier.width(6.dp))
             }
         }

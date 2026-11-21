@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -135,7 +136,7 @@ private fun Main(app: PulseDeskApp, messages: SnackbarHostState) {
     Scaffold(
         containerColor = Palette.Black,
         snackbarHost = {
-            SnackbarHost(messages) { Snackbar(it, containerColor = Palette.Surface2, contentColor = Palette.Text) }
+            SnackbarHost(messages) { Snackbar(it, containerColor = Palette.Text, contentColor = Palette.Black, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) }
         },
         bottomBar = {
             if (!landscape) Column(Modifier.windowInsetsPadding(sideInsets)) {
@@ -190,17 +191,17 @@ private fun NavHostController.openTab(route: String) = navigate(route) {
 
 @Composable
 private fun SideTabs(nav: NavHostController, route: String?) {
-    NavigationRail(containerColor = Palette.Black, modifier = Modifier.statusBarsPadding()) {
+    NavigationRail(containerColor = Palette.roles.s1, modifier = Modifier.statusBarsPadding()) {
         Spacer(Modifier.weight(1f))
         for (tab in Tabs) {
             NavigationRailItem(
                 selected = route == tab.route,
                 onClick = { if (route != tab.route) nav.openTab(tab.route) },
-                icon = { Icon(tab.icon, contentDescription = tab.title, modifier = Modifier.size(22.dp)) },
-                label = { Text(tab.title, fontSize = 10.sp, maxLines = 1) },
+                icon = { Icon(tab.icon, contentDescription = tab.title, modifier = Modifier.size(24.dp)) },
+                label = { Text(tab.title, fontSize = 12.sp, maxLines = 1, fontWeight = if (route == tab.route) FontWeight.Bold else FontWeight.Medium) },
                 colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = Palette.Black, selectedTextColor = Palette.Text,
-                    indicatorColor = Palette.accent, unselectedIconColor = Palette.Text3, unselectedTextColor = Palette.Text3),
+                    selectedIconColor = Palette.OnTonal, selectedTextColor = Palette.Text,
+                    indicatorColor = Palette.Tonal, unselectedIconColor = Palette.Text2, unselectedTextColor = Palette.Text2),
             )
         }
         Spacer(Modifier.weight(1f))
@@ -214,16 +215,17 @@ private fun animations(app: PulseDeskApp) = app.settings.values.value.animations
 
 @Composable
 private fun BottomTabs(nav: NavHostController, route: String?) {
-    NavigationBar(containerColor = Palette.Black, tonalElevation = 0.dp) {
+    NavigationBar(containerColor = Palette.Surface, tonalElevation = 0.dp) {
         for (tab in Tabs) {
             NavigationBarItem(
                 selected = route == tab.route,
                 onClick = { if (route != tab.route) nav.openTab(tab.route) },
-                icon = { Icon(tab.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                label = { Text(tab.title, fontSize = 10.sp, maxLines = 1) },
+                icon = { Icon(tab.icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                label = { Text(tab.title, fontSize = 11.sp, maxLines = 1, softWrap = false, letterSpacing = 0.sp,
+                    fontWeight = if (route == tab.route) FontWeight.Bold else FontWeight.Medium) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Palette.Black, selectedTextColor = Palette.Text,
-                    indicatorColor = Palette.accent, unselectedIconColor = Palette.Text3, unselectedTextColor = Palette.Text3),
+                    selectedIconColor = Palette.OnTonal, selectedTextColor = Palette.Text,
+                    indicatorColor = Palette.Tonal, unselectedIconColor = Palette.Text2, unselectedTextColor = Palette.Text2),
             )
         }
     }

@@ -1,5 +1,12 @@
 package com.kirdev.pulsedeckmobile.feature.files
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -75,18 +82,39 @@ fun FilesScreen(app: PulseDeskApp) {
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         TopTitle("Файлы") {
-            IconButtonSmall(AppIcons.Upload, "Отправить на ПК", onClick = { pick.launch(arrayOf("*/*")) })
             if (s.path != null) IconButtonSmall(AppIcons.Plus, "Новая папка", onClick = {
                 dialog = { InputDialog("Новая папка", "", "Создать", vm::mkdir) { dialog = null } }
             })
             IconButtonSmall(AppIcons.Refresh, "Обновить", onClick = vm::reload)
         }
         if (s.path != null) {
-            Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Material 3 search bar: a pill on the high surface.
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().height(56.dp).clip(RoundedCornerShape(28.dp))
+                .background(Palette.Surface2).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButtonSmall(AppIcons.Back, "Вверх", onClick = vm::up)
-                Text(s.path!!, fontSize = 12.sp, color = Palette.Text2, maxLines = 1, modifier = Modifier.weight(1f))
+                androidx.compose.foundation.text.BasicTextField(
+                    s.query, vm::search, singleLine = true, modifier = Modifier.weight(1f),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = Palette.Text),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.accent),
+                    decorationBox = { field ->
+                        if (s.query.isEmpty()) Text("Поиск в папке", fontSize = 16.sp, color = Palette.Text2)
+                        field()
+                    },
+                )
+                Icon(AppIcons.Search, null, tint = Palette.Text2, modifier = Modifier.padding(end = 12.dp).size(22.dp))
             }
-            PanelTextField(s.query, vm::search, Modifier.padding(horizontal = 16.dp, vertical = 6.dp), placeholder = "Поиск в этой папке")
+            // Where we are: the last two folders of the path, the current one as a tonal chip.
+            val parts = s.path!!.trimEnd('\\').split('\\').filter { it.isNotBlank() }
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                parts.takeLast(3).forEachIndexed { i, part ->
+                    val last = i == parts.takeLast(3).lastIndex
+                    if (i > 0) Text("›", fontSize = 14.sp, color = Palette.Text2, modifier = Modifier.padding(horizontal = 4.dp))
+                    Text(part, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, maxLines = 1,
+                        color = if (last) Palette.OnTonal else Palette.Text2,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).then(if (last) Modifier.background(Palette.Tonal) else Modifier)
+                            .padding(horizontal = 10.dp, vertical = 6.dp).weight(1f, fill = false))
+                }
+            }
         }
         s.transfer?.let { (label, fraction) ->
             Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -130,6 +158,18 @@ fun FilesScreen(app: PulseDeskApp) {
         }
     }
     dialog?.invoke()
+    // Extended FAB: the main action of this screen.
+    Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomEnd) {
+        if (connection is ConnectionState.Connected) Row(
+            Modifier.height(56.dp).clip(RoundedCornerShape(16.dp)).background(Palette.Container)
+                .clickable { pick.launch(arrayOf("*/*")) }.padding(start = 16.dp, end = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(AppIcons.Upload, null, tint = Palette.OnContainer, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.size(10.dp))
+            Text("Отправить на ПК", fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = Palette.OnContainer)
+        }
+    }
 }
 
 @Composable

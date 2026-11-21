@@ -35,7 +35,7 @@ fun KiroXMotion(
     modifier: Modifier = Modifier,
     width: Dp = 144.dp,
     height: Dp = 18.dp,
-    color: Color = Color.White,
+    color: Color = com.kirdev.pulsedeckmobile.core.theme.Palette.accent,
     /** False: a still wave (nothing playing, animations off in Settings). */
     animate: Boolean = true,
 ) {

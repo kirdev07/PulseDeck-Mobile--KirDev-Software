@@ -92,11 +92,11 @@ fun MiniPlayer(app: PulseDeskApp, onOpen: () -> Unit) {
     val position = livePosition(track, 1000)
     val playing = track.status == PlayStatus.PLAYING
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp).clip(RoundedCornerShape(16.dp))
-            .background(Palette.Surface).border(1.dp, Palette.Border, RoundedCornerShape(16.dp)).clickable(onClick = onOpen),
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clip(RoundedCornerShape(20.dp))
+            .background(Palette.Surface2).clickable(onClick = onOpen),
     ) {
         Row(Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Cover(cover?.takeIf { it.first == track.coverKey }?.second, 42.dp, 10.dp)
+            Cover(cover?.takeIf { it.first == track.coverKey }?.second, 44.dp, 12.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(track.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 1,
@@ -105,8 +105,10 @@ fun MiniPlayer(app: PulseDeskApp, onOpen: () -> Unit) {
                     fontSize = 12.sp, color = Palette.Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Control(AppIcons.Prev, "Предыдущий", track.canPrev, 40.dp) { app.connection.send("prev") }
-            Control(if (playing) AppIcons.Pause else AppIcons.Play, if (playing) "Пауза" else "Играть", true, 40.dp) {
-                app.connection.send("toggle")
+            Box(Modifier.padding(horizontal = 4.dp).size(44.dp).clip(RoundedCornerShape(14.dp)).background(Palette.accent)
+                .clickable { app.connection.send("toggle") }.semantics { contentDescription = if (playing) "Пауза" else "Играть" },
+                contentAlignment = Alignment.Center) {
+                Icon(if (playing) AppIcons.Pause else AppIcons.Play, null, tint = Palette.onAccent, modifier = Modifier.size(20.dp))
             }
             Control(AppIcons.Next, "Следующий", track.canNext, 40.dp) { app.connection.send("next") }
         }
@@ -147,7 +149,7 @@ fun MusicScreen(app: PulseDeskApp, onBack: () -> Unit) {
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Cover(image, null, 22.dp, Modifier.widthIn(max = 340.dp).fillMaxWidth().aspectRatio(1f))
+                    Cover(image, null, 32.dp, Modifier.widthIn(max = 340.dp).fillMaxWidth().aspectRatio(1f))
                     Spacer(Modifier.height(22.dp))
                     PlayerControls(app, track, position, volume, prefs.animations, prefs.waveSeek)
                     Spacer(Modifier.height(24.dp))
@@ -193,17 +195,17 @@ private fun PlayerControls(
             }
         }
         Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-            Control(AppIcons.Prev, "Предыдущий трек", track.canPrev, 56.dp) { app.connection.send("prev") }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            TonalControl(AppIcons.Prev, "Предыдущий трек", track.canPrev) { app.connection.send("prev") }
             Box(
-                Modifier.size(72.dp).clip(CircleShape).border(1.5.dp, Palette.Text2, CircleShape)
+                Modifier.size(112.dp, 80.dp).clip(RoundedCornerShape(28.dp)).background(Palette.accent)
                     .clickable { app.connection.send("toggle") }
                     .semantics { contentDescription = if (playing) "Пауза" else "Воспроизвести" },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(if (playing) AppIcons.Pause else AppIcons.Play, null, tint = Palette.Text, modifier = Modifier.size(30.dp))
+                Icon(if (playing) AppIcons.Pause else AppIcons.Play, null, tint = Palette.onAccent, modifier = Modifier.size(34.dp))
             }
-            Control(AppIcons.Next, "Следующий трек", track.canNext, 56.dp) { app.connection.send("next") }
+            TonalControl(AppIcons.Next, "Следующий трек", track.canNext) { app.connection.send("next") }
         }
         Spacer(Modifier.height(12.dp))
         // The wave moves only while playing and when animations are on (not twice with the wave seek bar).
@@ -216,11 +218,11 @@ private fun PlayerControls(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Icon(AppIcons.Volume, null, tint = Palette.Text3, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
-                Box(Modifier.weight(1f).semantics { contentDescription = "Громкость ПК" }) {
-                    SeekBar(value, onDrag = { value = it }) {
+                Box(Modifier.weight(1f)) {
+                    com.kirdev.pulsedeckmobile.core.ui.M3Slider(value, onMove = { value = it }, label = "Громкость ПК", onDone = {
                         value = it
                         app.connection.send("volume", (it * 100).toInt())
-                    }
+                    })
                 }
                 Spacer(Modifier.width(10.dp))
                 Text("${(value * 100).toInt()}", style = Numbers.copy(color = Palette.Text3), modifier = Modifier.width(28.dp))
@@ -245,10 +247,7 @@ private fun SourceChips(players: List<Player>, selected: String, onPick: (String
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for ((id, label) in listOf("" to "Автоматически") + players.map { it.id to it.source }) {
-            val on = id == selected
-            Text(label, fontSize = 13.sp, color = if (on) Palette.Black else Palette.Text2, maxLines = 1,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Palette.accent else Palette.Surface2)
-                    .clickable { onPick(id) }.padding(horizontal = 14.dp, vertical = 7.dp))
+            com.kirdev.pulsedeckmobile.core.ui.ChoiceChip(label, id == selected) { onPick(id) }
         }
     }
 }
@@ -316,6 +315,17 @@ private fun Cover(image: Bitmap?, size: Dp?, radius: Dp, modifier: Modifier = Mo
         } else {
             Icon(AppIcons.Music, contentDescription = null, tint = Palette.Text3, modifier = Modifier.size(28.dp))
         }
+    }
+}
+
+@Composable
+private fun TonalControl(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(64.dp).clip(CircleShape).background(if (enabled) Palette.Tonal else Palette.Track)
+            .clickable(enabled = enabled, onClick = onClick).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = if (enabled) Palette.OnTonal else Palette.Disabled, modifier = Modifier.size(26.dp))
     }
 }
 

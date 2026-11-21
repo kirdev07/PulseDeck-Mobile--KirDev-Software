@@ -49,6 +49,7 @@ import com.kirdev.pulsedeckmobile.navigation.Routes
 import com.kirdev.pulsedeckmobile.monitoring.AlertCenter
 import com.kirdev.pulsedeckmobile.monitoring.Limit
 import androidx.compose.runtime.setValue
+import kotlin.math.roundToInt
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 
 /** Screen 12. Every switch here changes real behaviour; nothing decorative. */
@@ -293,13 +294,15 @@ private fun LimitRow(limit: Limit, value: Int, onChange: (Int) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(limit.title, fontSize = 13.sp, color = Palette.Text2, modifier = Modifier.weight(1f))
-            Text("${if (limit.over) "≥" else "≤"} ${current.toInt()}%", fontSize = 13.sp, color = Palette.Text)
+            Text("${if (limit.over) "≥" else "≤"} ${current.roundToInt()}%", fontSize = 13.sp, color = Palette.Text)
         }
-        androidx.compose.material3.Slider(
-            value = current, onValueChange = { current = it }, onValueChangeFinished = { onChange(current.toInt()) },
-            valueRange = limit.range.first.toFloat()..limit.range.last.toFloat(),
-            colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Palette.accent, activeTrackColor = Palette.accent,
-                inactiveTrackColor = Palette.Track),
+        val span = (limit.range.last - limit.range.first).toFloat()
+        com.kirdev.pulsedeckmobile.core.ui.PulseSlider(
+            (current - limit.range.first) / span,
+            onChange = { current = limit.range.first + it * span },
+            onDone = { current = limit.range.first + it * span; onChange(current.roundToInt()) },
+            label = limit.title, steps = span.toInt(), track = 12.dp,
+            bubble = { "${(limit.range.first + it * span).roundToInt()}%" },
         )
     }
 }

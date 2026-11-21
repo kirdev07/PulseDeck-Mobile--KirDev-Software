@@ -118,35 +118,14 @@ fun MiniPlayer(app: PulseDeskApp, onOpen: () -> Unit) {
     }
 }
 
-/** Thin bar with a 28 dp touch area: tap to jump, drag to scrub (sent when the finger lifts). */
+/** Track position and volume: [PulseSlider] (a wave while playing when «Ползунок волной» is on). */
 @Composable
 fun SeekBar(
     fraction: Float, onDrag: (Float) -> Unit, wave: Boolean = false, playing: Boolean = false, motion: Boolean = true,
-    onSeek: (Float) -> Unit,
+    label: String = "", bubble: ((Float) -> String)? = null, onSeek: (Float) -> Unit,
 ) {
-    var current by remember { mutableFloatStateOf(0f) }
-    // The newest callbacks: the track (and its length) may change while this bar stays on screen.
-    val seekNow by androidx.compose.runtime.rememberUpdatedState(onSeek)
-    val dragNow by androidx.compose.runtime.rememberUpdatedState(onDrag)
-    Box(
-        Modifier.fillMaxWidth().height(28.dp)
-            .pointerInput(Unit) { detectTapGestures { seekNow((it.x / size.width).coerceIn(0f, 1f)) } }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { current = (it.x / size.width).coerceIn(0f, 1f); dragNow(current) },
-                    onHorizontalDrag = { change, _ ->
-                        change.consume()
-                        current = (change.position.x / size.width).coerceIn(0f, 1f); dragNow(current)
-                    },
-                    onDragEnd = { seekNow(current) },
-                    onDragCancel = { seekNow(current) },
-                )
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        if (wave) SquigglyProgress(fraction, playing, motion, Modifier.fillMaxWidth().height(28.dp))
-        else ThinProgress(fraction, Modifier.fillMaxWidth())
-    }
+    com.kirdev.pulsedeckmobile.core.ui.PulseSlider(fraction, onDrag, onSeek, label = label, track = 12.dp, wave = wave,
+        playing = playing && motion, bubble = bubble)
 }
 
 @Composable

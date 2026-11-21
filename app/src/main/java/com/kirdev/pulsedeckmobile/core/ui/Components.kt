@@ -56,6 +56,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import com.kirdev.pulsedeckmobile.core.theme.Palette
+import kotlin.math.roundToInt
 
 /** Material 3 linear indicator (6 dp, rounded); drawn in one Canvas instead of nested layouts. */
 @Composable
@@ -168,46 +169,10 @@ fun Segmented(options: List<Pair<String, String>>, selected: String, modifier: M
     }
 }
 
-/**
- * Material 3 slider (the thick one of Android 15+): a 16 dp track split by an upright handle.
- * The value is sent when the finger lifts; [onMove] follows it live.
- */
+/** Volume-style slider: [PulseSlider] with the value over the finger. Kept for the old call sites. */
 @Composable
 fun M3Slider(value: Float, onMove: (Float) -> Unit, onDone: (Float) -> Unit, modifier: Modifier = Modifier, label: String = "") {
-    var current by remember { mutableStateOf(value) }
-    val doneNow by androidx.compose.runtime.rememberUpdatedState(onDone)
-    val moveNow by androidx.compose.runtime.rememberUpdatedState(onMove)
-    Box(
-        modifier.fillMaxWidth().height(48.dp)
-            .pointerInput(Unit) {
-                detectTapGestures { current = (it.x / size.width).coerceIn(0f, 1f); moveNow(current); doneNow(current) }
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { current = (it.x / size.width).coerceIn(0f, 1f); moveNow(current) },
-                    onHorizontalDrag = { change, _ -> change.consume(); current = (change.position.x / size.width).coerceIn(0f, 1f); moveNow(current) },
-                    onDragEnd = { doneNow(current) }, onDragCancel = { doneNow(current) },
-                )
-            }
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        val active = Palette.accent
-        val rest = Palette.Track
-        Canvas(Modifier.fillMaxWidth().height(48.dp)) {
-            val v = value.coerceIn(0f, 1f)
-            val gap = 6.dp.toPx()
-            val handle = 4.dp.toPx()
-            val track = 16.dp.toPx()
-            val top = (size.height - track) / 2
-            val x = (size.width - handle) * v
-            val r = track / 2
-            if (x - gap > 0) drawRoundRect(active, androidx.compose.ui.geometry.Offset(0f, top), Size(x - gap, track), CornerRadius(r))
-            if (x + handle + gap < size.width) drawRoundRect(rest, androidx.compose.ui.geometry.Offset(x + handle + gap, top),
-                Size(size.width - x - handle - gap, track), CornerRadius(r))
-            drawRoundRect(active, androidx.compose.ui.geometry.Offset(x, 0f), Size(handle, size.height), CornerRadius(handle / 2))
-        }
-    }
+    PulseSlider(value, onMove, onDone, modifier, label = label, bubble = { "${(it * 100).roundToInt()}" })
 }
 
 @Composable

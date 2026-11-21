@@ -136,7 +136,7 @@ private fun TrackAndControls(app: PulseDeskApp, track: MediaSession, volume: Sys
     if (track.duration > 0) {
         val shown = dragging?.let { it * track.duration } ?: position
         SeekBar((shown / track.duration).toFloat(), onDrag = { dragging = it }, wave = wave, playing = playing,
-            motion = animations && !Device.lite) {
+            motion = animations && !Device.lite, label = "Позиция трека", bubble = { Format.time(it * track.duration) }) {
             dragging = null
             app.connection.send("seek", (it * track.duration).coerceIn(0.0, track.duration))
         }
@@ -167,7 +167,9 @@ private fun TrackAndControls(app: PulseDeskApp, track: MediaSession, volume: Sys
             Column(Modifier.weight(1f)) {
                 Text("Громкость ПК · ${(value * 100).toInt()}" + if (level.muted) " · звук выключен" else "",
                     fontSize = 12.sp, color = Palette.Text2)
-                SeekBar(value, onDrag = { value = it }) { value = it; app.connection.send("volume", (it * 100).toInt()) }
+                SeekBar(value, onDrag = { value = it }, label = "Громкость ПК", bubble = { "${(it * 100).toInt()}" }) {
+                    value = it; app.connection.send("volume", (it * 100).toInt())
+                }
             }
         }
     }

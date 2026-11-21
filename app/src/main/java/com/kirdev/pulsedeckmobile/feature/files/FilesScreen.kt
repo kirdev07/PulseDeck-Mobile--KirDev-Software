@@ -129,7 +129,7 @@ fun FilesScreen(app: PulseDeskApp) {
             connection !is ConnectionState.Connected -> Placeholder("Нет связи с ПК.")
             s.error != null -> Placeholder(s.error!!, action = "Повторить", onAction = vm::reload)
             s.loading && s.items.isEmpty() && s.roots.isEmpty() -> Placeholder("Загрузка…")
-            s.path == null -> LazyColumn(Modifier.padding(horizontal = 8.dp)) {
+            s.path == null -> LazyColumn(Modifier.padding(horizontal = 8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
                 items(s.roots, key = { "${it.name}|${it.path}" }) { root ->
                     ListRow(if (root.path.length <= 3) AppIcons.Disk else AppIcons.Folder, root.name, root.path, chevron = true,
                         onClick = { vm.open(root.path) })

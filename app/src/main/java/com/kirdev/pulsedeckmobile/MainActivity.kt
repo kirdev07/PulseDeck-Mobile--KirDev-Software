@@ -26,8 +26,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         // No notification question at start: the music card is a media notification (shown without
         // the permission); warnings ask for it from their switch in Settings.
+        applyOrientation(app.settings.values.value.rotate)        // before the first frame: no turn on start
         lifecycleScope.launch {
-            app.settings.values.collect { com.kirdev.pulsedeckmobile.core.ui.Frames.apply(window, display, it.frameRate) }
+            app.settings.values.collect {
+                com.kirdev.pulsedeckmobile.core.ui.Frames.apply(window, display, it.frameRate)
+                applyOrientation(it.rotate)
+            }
         }
         debugOpen(intent)
         setContent {
@@ -49,6 +53,24 @@ class MainActivity : ComponentActivity() {
     private fun debugOpen(intent: android.content.Intent?) {
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
         intent?.getStringExtra("open")?.let { app.debugOpen.value = it }
+        // Debug builds only, for screenshots of the landscape layout: --es orientation landscape|portrait|auto
+        intent?.getStringExtra("orientation")?.let {
+            debugOrientation = when (it) {
+                "landscape" -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                "portrait" -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                else -> null
+            }
+            applyOrientation(app.settings.values.value.rotate)
+        }
+    }
+
+    private var debugOrientation: Int? = null
+
+    /** «Поворот экрана» off: always portrait; on: with the phone, if Android's auto-rotate is on. */
+    private fun applyOrientation(rotate: Boolean) {
+        val wanted = debugOrientation ?: if (rotate) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+            else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        if (requestedOrientation != wanted) requestedOrientation = wanted
     }
 
     override fun onStart() {

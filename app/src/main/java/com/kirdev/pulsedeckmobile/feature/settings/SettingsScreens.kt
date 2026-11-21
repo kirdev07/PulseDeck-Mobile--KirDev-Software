@@ -190,6 +190,8 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
                 Toggle("Анимации", "Волна, переходы, полоски «играет». Если в Android анимации выключены, они выключены и здесь.",
                     prefs.animations) { on -> set { it.copy(animations = on) } }
                 Toggle("Ползунок волной", "Полоса времени трека волной, пока он играет.", prefs.waveSeek) { on -> set { it.copy(waveSeek = on) } }
+                Toggle("Поворот экрана", "Альбомная ориентация, когда телефон повёрнут (если в Android включён автоповорот). " +
+                    "Выключено — всегда книжная.", prefs.rotate) { on -> set { it.copy(rotate = on) } }
             }
             SectionTitle("Частота кадров")
             val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity

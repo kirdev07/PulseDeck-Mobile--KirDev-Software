@@ -28,6 +28,8 @@ data class Prefs(
     val waveSeek: Boolean = true,
     /** «auto» / «eco» (60) / «max» (the display's top rate): core/ui/Frames.kt. */
     val frameRate: String = "auto",
+    /** Turn with the phone (landscape too); off = always portrait. */
+    val rotate: Boolean = false,
     /** «Предупреждения»: a notice when a value stays past its limit. */
     val alerts: Boolean = true,
     /** …also as a system notification. */
@@ -59,6 +61,7 @@ class AppSettings(context: Context) {
             .putBoolean("remote_volume", next.remoteVolume)
             .putBoolean("wave_seek", next.waveSeek)
             .putString("frame_rate", next.frameRate)
+            .putBoolean("rotate", next.rotate)
             .putBoolean("alerts", next.alerts)
             .putBoolean("notify", next.notify)
             .putBoolean("alert_offline", next.alertOffline)
@@ -85,6 +88,7 @@ class AppSettings(context: Context) {
         remoteVolume = prefs.getBoolean("remote_volume", true),
         waveSeek = prefs.getBoolean("wave_seek", true),
         frameRate = prefs.getString("frame_rate", null) ?: "auto",
+        rotate = prefs.getBoolean("rotate", false),
         alerts = prefs.getBoolean("alerts", true),
         notify = prefs.getBoolean("notify", false),
         alertOffline = prefs.getBoolean("alert_offline", true),

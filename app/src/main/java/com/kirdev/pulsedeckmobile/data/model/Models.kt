@@ -25,7 +25,21 @@ data class Metrics(
     val disks: List<Disk>,
     /** Seconds since the PC booted; null on older PulseDeck. */
     val uptime: Long?,
-)
+    /** Laptops only; a desktop PC has no battery: null. */
+    val battery: Battery? = null,
+) {
+    /** Video memory in use, percent; null when the PC does not report it. */
+    val vramPercent: Double? get() = if (gpuMemoryTotal != null && gpuMemoryUsed != null && gpuMemoryTotal > 0)
+        100.0 * gpuMemoryUsed / gpuMemoryTotal else null
+}
+
+data class Battery(val percent: Double?, val plugged: Boolean)
+
+/** A player on the PC the phone can follow (the built-in one or a media session of an app). */
+data class Player(val id: String, val source: String, val title: String, val status: String)
+
+/** «Сейчас на ПК»: the app in front, its window title, whether it fills the screen. */
+data class PcActivity(val app: String, val title: String, val fullscreen: Boolean)
 
 enum class PlayStatus { PLAYING, PAUSED }
 

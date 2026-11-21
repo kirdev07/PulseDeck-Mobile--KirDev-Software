@@ -1,6 +1,9 @@
 package com.kirdev.pulsedeckmobile.data.remote
 
+import com.kirdev.pulsedeckmobile.data.model.Battery
 import com.kirdev.pulsedeckmobile.data.model.Disk
+import com.kirdev.pulsedeckmobile.data.model.PcActivity
+import com.kirdev.pulsedeckmobile.data.model.Player
 import com.kirdev.pulsedeckmobile.data.model.Load
 import com.kirdev.pulsedeckmobile.data.model.MediaSession
 import com.kirdev.pulsedeckmobile.data.model.Metrics
@@ -14,13 +17,17 @@ import org.json.JSONObject
 object Protocol {
     const val VERSION = 1
     const val CLOSE_REVOKED = 4001
-    val COMMANDS = setOf("toggle", "next", "prev", "seek", "volume")
+    val COMMANDS = setOf("toggle", "next", "prev", "seek", "volume", "source")
 
     sealed interface Message {
         data class Hello(val protocol: Int, val pcName: String) : Message
         data class MetricsUpdate(val metrics: Metrics) : Message
         data class MediaUpdate(val session: MediaSession?, val volume: SystemVolume? = null) : Message
         data class Error(val code: String, val text: String) : Message
+        /** Players to choose from (PulseDeck 1.0.4+; older PCs never send it). */
+        data class Sessions(val players: List<Player>) : Message
+        /** The app in front on the PC; null = the desktop, nothing or a locked PC. */
+        data class Activity(val activity: PcActivity?) : Message
         data object Pong : Message
         /** Unknown types are ignored, so the PC can add messages without breaking old clients. */
         data object Unknown : Message
@@ -34,6 +41,14 @@ object Protocol {
             "media" -> Message.MediaUpdate(json.optJSONObject("session")?.let { media(it, nowElapsed) },
                 json.optJSONObject("system_volume")?.let { SystemVolume(it.optInt("level"), it.optBoolean("muted")) })
             "error" -> Message.Error(json.optString("code"), json.optString("message"))
+            "sessions" -> Message.Sessions(json.optJSONArray("items")?.let { items ->
+                (0 until items.length()).mapNotNull { i ->
+                    items.optJSONObject(i)?.let { Player(it.optString("id"), it.optString("source"), it.optString("title"), it.optString("status")) }
+                }.filter { it.id.isNotBlank() }
+            }.orEmpty())
+            "activity" -> Message.Activity(json.stringOrNull("app")?.let {
+                PcActivity(it, json.optString("title"), json.optBoolean("fullscreen"))
+            })
             "pong" -> Message.Pong
             else -> Message.Unknown
         }
@@ -45,7 +60,7 @@ object Protocol {
     fun subscribe(metrics: Boolean, interval: Double? = null): String = JSONObject().put("type", "subscribe")
         .put("metrics", metrics).apply { if (interval != null) put("interval", interval) }.toString()
 
-    fun command(action: String, value: Number? = null): String {
+    fun command(action: String, value: Any? = null): String {
         require(action in COMMANDS) { "Unsupported command: $action" }
         return JSONObject().put("type", "command").put("action", action)
             .apply { if (value != null) put("value", value) }.toString()
@@ -88,6 +103,7 @@ object Protocol {
                 }
             }.filter { it.total > 0 },
             uptime = json.longOrNull("uptime"),
+            battery = json.optJSONObject("battery")?.let { Battery(it.doubleOrNull("percent"), it.optBoolean("plugged")) },
         )
     }
 

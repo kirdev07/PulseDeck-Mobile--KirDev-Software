@@ -18,6 +18,7 @@ import com.kirdev.pulsedeckmobile.MainActivity
 import com.kirdev.pulsedeckmobile.PulseDeskApp
 import com.kirdev.pulsedeckmobile.R
 import com.kirdev.pulsedeckmobile.data.model.MediaSession as PcTrack
+import com.kirdev.pulsedeckmobile.data.model.PlayStatus as PcPlayStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,6 +45,7 @@ class MediaNotificationService : Service() {
     private var metadataKey: Any? = null
     private var stopJob: Job? = null
     private var remoteVolume = false
+    private var volumeProvider: VolumeProvider? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -57,14 +59,18 @@ class MediaNotificationService : Service() {
             })
         session = MediaSession(this, "PulseDesk").apply {
             setCallback(object : MediaSession.Callback() {
-                override fun onPlay() = command("toggle")
-                override fun onPause() = command("toggle")
+                // «Play» / «Pause» from a headset or the Assistant set a state; only the card's button toggles.
+                override fun onPlay() { if (app.connection.media.value?.status != PcPlayStatus.PLAYING) command("toggle") }
+                override fun onPause() { if (app.connection.media.value?.status == PcPlayStatus.PLAYING) command("toggle") }
                 override fun onSkipToNext() = command("next")
                 override fun onSkipToPrevious() = command("prev")
                 override fun onSeekTo(pos: Long) = command("seek", pos / 1000.0)
             })
             setSessionActivity(openApp())
         }
+        // In the foreground before anything can call stopSelf (the collector below may run at once):
+        // a service started with startForegroundService that stops first crashes the app.
+        startForeground(ID, build(app.connection.media.value, PlayerState.PAUSED), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         app.connection.hold(HOLDER)
         scope.launch {
             combine(app.connection.state, app.connection.media, app.connection.cover, app.connection.volume,
@@ -94,7 +100,7 @@ class MediaNotificationService : Service() {
         if (!s.enabled || !s.state.hasTrack || s.track == null) {
             // A short grace avoids the card blinking between tracks (the PC sends null for a moment).
             if (stopJob == null) stopJob = scope.launch {
-                delay(if (s.state == PlayerState.DISCONNECTED || !s.enabled) 0 else GRACE_MS)
+                delay(if (s.state == PlayerState.DISCONNECTED || !s.enabled) 300 else GRACE_MS)
                 stopSelf()
             }
             return
@@ -138,9 +144,11 @@ class MediaNotificationService : Service() {
     /** Phone volume keys move the PC volume only while a track plays (not when paused or idle). */
     private fun updateVolumeKeys(remote: Boolean, level: Int?) {
         if (remote && level != null) {
+            // Follow the PC: a level changed there must not be jumped over by the next key press.
+            volumeProvider?.let { if (it.currentVolume != level) it.currentVolume = level }
             if (!remoteVolume) {
                 remoteVolume = true
-                session.setPlaybackToRemote(object : VolumeProvider(VOLUME_CONTROL_ABSOLUTE, 100, level) {
+                volumeProvider = object : VolumeProvider(VOLUME_CONTROL_ABSOLUTE, 100, level) {
                     override fun onSetVolumeTo(volume: Int) {
                         currentVolume = volume.coerceIn(0, 100)
                         command("volume", currentVolume)
@@ -149,10 +157,11 @@ class MediaNotificationService : Service() {
                         currentVolume = (currentVolume + direction * 5).coerceIn(0, 100)
                         command("volume", currentVolume)
                     }
-                })
+                }.also { session.setPlaybackToRemote(it) }
             }
         } else if (remoteVolume) {
             remoteVolume = false
+            volumeProvider = null
             session.setPlaybackToLocal(android.media.AudioAttributes.Builder()
                 .setUsage(android.media.AudioAttributes.USAGE_MEDIA).build())
         }

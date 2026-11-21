@@ -108,7 +108,8 @@ class PcApi(private val endpoint: StateFlow<Endpoint?>) {
     suspend fun upload(name: String, size: Long, open: () -> InputStream, progress: (Long, Long) -> Unit): String {
         val body = object : RequestBody() {
             override fun contentType() = "application/octet-stream".toMediaType()
-            override fun contentLength() = size
+            // Unknown or untrusted size (cloud documents): chunked, so a wrong length cannot break the upload.
+            override fun contentLength() = -1L
             override fun writeTo(sink: BufferedSink) {
                 open().use { input -> copy(input, sink.outputStream(), size, progress) }
             }

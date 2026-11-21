@@ -12,6 +12,7 @@ import com.kirdev.pulsedeckmobile.feature.notifications.EventsFeed
 import com.kirdev.pulsedeckmobile.media.MediaNotificationService
 import com.kirdev.pulsedeckmobile.media.hasTrack
 import com.kirdev.pulsedeckmobile.media.playerState
+import com.kirdev.pulsedeckmobile.monitoring.AlertCenter
 import com.kirdev.pulsedeckmobile.monitoring.MetricsHistory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ class PulseDeskApp : Application() {
     lateinit var history: MetricsHistory
     lateinit var events: EventsFeed
     lateinit var updater: Updater
+    lateinit var alerts: AlertCenter
 
     /** The activity is started (on screen): set by MainActivity.onStart/onStop. */
     val visible = MutableStateFlow(false)
@@ -44,6 +46,7 @@ class PulseDeskApp : Application() {
         history = MetricsHistory(connection.metrics, scope)
         events = EventsFeed(api)
         updater = Updater(this, scope)
+        alerts = AlertCenter(this, connection, settings, visible, scope)      // main thread: one at a time
 
         scope.launch {
             settings.values.collect {

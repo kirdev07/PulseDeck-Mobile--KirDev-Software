@@ -98,3 +98,37 @@ class WindowOrderTest {
         assertEquals(listOf(1L, 3L, 4L), result.map { it.hwnd })     // 2 closed, 4 new at the end
     }
 }
+
+class PcExtrasTest {
+    private fun metrics(cpu: Double = 5.0) = (Protocol.parse("""{"type":"metrics","cpu":{"load":$cpu},"gpu":{"load":1,
+        "memory_total":100,"memory_used":50},"ram":{"percent":50},"net":{},"uptime":60,"battery":{"percent":15,"plugged":false},
+        "disks":[{"name":"C:","total":100,"free":40}]}""", 0) as Protocol.Message.MetricsUpdate).metrics
+
+    @Test fun batteryPlayersActivity() {
+        val m = metrics()
+        assertEquals(15.0, m.battery!!.percent!!, 0.1)
+        assertEquals(50.0, m.vramPercent!!, 0.1)
+        val players = Protocol.parse("""{"type":"sessions","items":[{"id":"pulse","source":"PulseDeck"},{"id":""}]}""", 0)
+            as Protocol.Message.Sessions
+        assertEquals(listOf("pulse"), players.players.map { it.id })
+        val activity = Protocol.parse("""{"type":"activity","app":"Steam","title":"","fullscreen":false}""", 0)
+            as Protocol.Message.Activity
+        assertEquals("Steam", activity.activity!!.app)
+        assertEquals("pulse", org.json.JSONObject(Protocol.command("source", "pulse")).getString("value"))
+    }
+
+    @Test fun warningsAfterTenSecondsOnce() {
+        val monitor = com.kirdev.pulsedeckmobile.monitoring.AlertMonitor()
+        val prefs = com.kirdev.pulsedeckmobile.data.local.Prefs()
+        val hot = metrics(cpu = 97.0)
+        for (t in 0L..8_000L step 2_000L) monitor.check(hot, prefs, t).let { fired ->
+            // the PC battery at 15 % (unplugged) is below its 20 % limit too: it also waits 10 s
+            assertTrue(fired.isEmpty())
+        }
+        val fired = monitor.check(hot, prefs, 10_000).map { it.first.name }.toSet()
+        assertEquals(setOf("CPU", "BATTERY"), fired)
+        assertTrue(monitor.check(hot, prefs, 12_000).isEmpty())
+        assertTrue(monitor.check(hot, prefs.copy(alerts = false), 14_000).isEmpty())
+        assertTrue(monitor.activeLimits.isEmpty())                 // turned off: nothing stays active
+    }
+}

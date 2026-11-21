@@ -172,7 +172,7 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
                 })
                 ListRow(AppIcons.Image, "Скриншот экрана", "Снимок главного монитора", chevron = true, onClick = {
                     actions.run {
-                        val bytes = api.screenshot(0, 1600)
+                        val bytes = api.screenshot(1, 1600)      // mss: 1 = main monitor, 0 = all of them
                         screenshot = withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
                         null
                     }

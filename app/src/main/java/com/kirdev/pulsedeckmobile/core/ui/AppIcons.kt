@@ -71,6 +71,7 @@ object AppIcons {
     val Link = icon("link", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1", "M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1")
     val Image = icon("image", "M4 5h16v14H4z", "M4 16l5-5l4 4l3-3l4 4", "M15.5 8.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2")
     val Close = icon("close", "M6 6l12 12M18 6L6 18")
+    val Battery = icon("battery", "M4 8h13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z", "M20.5 10.5v3", "M6 10.5v3M9 10.5v3")
     val Refresh = icon("refresh", "M19.5 12a7.5 7.5 0 1 1-2.2-5.3", "M19.5 4.5v4h-4")
     val Logout = icon("logout", "M10 4H5v16h5", "M14 8l4 4l-4 4M18 12H9")
     val Info = icon("info", "M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17", "M12 11v5.5M12 7.8v0.4")

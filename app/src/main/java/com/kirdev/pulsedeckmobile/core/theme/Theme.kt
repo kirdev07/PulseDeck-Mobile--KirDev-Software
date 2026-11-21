@@ -39,8 +39,14 @@ object Palette {
     val Disabled = Color(0xFF454545)
 }
 
-/** Accent choices shown in Appearance: whites and greys only, like the mockups. */
-val Accents = listOf(Color(0xFFFFFFFF), Color(0xFFE0E0E0), Color(0xFFB8B8B8), Color(0xFF8E8E8E))
+/**
+ * Accent choices shown in Appearance: the whites and greys of the mockups, then the colours of
+ * PulseDeck Panel and the web panel (the same values), for the active tab, bars and switches.
+ */
+val Accents = listOf(
+    Color(0xFFFFFFFF), Color(0xFFE0E0E0), Color(0xFFB8B8B8), Color(0xFF8E8E8E),
+    Color(0xFF4C8DFF), Color(0xFF34C77B), Color(0xFFA679FF), Color(0xFFFF9F43), Color(0xFFFF5C5C), Color(0xFFFF6FB5),
+)
 
 private val Type = Typography(
     titleLarge = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text),

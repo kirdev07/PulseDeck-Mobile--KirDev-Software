@@ -64,6 +64,8 @@ import com.kirdev.pulsedeckmobile.core.ui.ThinProgress
 import com.kirdev.pulsedeckmobile.core.utils.Format
 import com.kirdev.pulsedeckmobile.data.model.MediaSession
 import com.kirdev.pulsedeckmobile.data.model.PlayStatus
+import com.kirdev.pulsedeckmobile.data.model.Player
+import androidx.compose.animation.core.animateFloat
 import com.kirdev.pulsedeckmobile.feature.pulse.KiroXMotion
 import kotlinx.coroutines.delay
 
@@ -137,7 +139,7 @@ fun MusicScreen(app: PulseDeskApp, onBack: () -> Unit) {
                     Cover(image, null, 22.dp, Modifier.fillMaxHeight().aspectRatio(1f))
                     Spacer(Modifier.width(28.dp))
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                        PlayerControls(app, track, position, volume, prefs.animations)
+                        PlayerControls(app, track, position, volume, prefs.animations, prefs.waveSeek)
                     }
                 }
             } else {
@@ -147,7 +149,7 @@ fun MusicScreen(app: PulseDeskApp, onBack: () -> Unit) {
                 ) {
                     Cover(image, null, 22.dp, Modifier.widthIn(max = 340.dp).fillMaxWidth().aspectRatio(1f))
                     Spacer(Modifier.height(22.dp))
-                    PlayerControls(app, track, position, volume, prefs.animations)
+                    PlayerControls(app, track, position, volume, prefs.animations, prefs.waveSeek)
                     Spacer(Modifier.height(24.dp))
                 }
             }
@@ -156,12 +158,22 @@ fun MusicScreen(app: PulseDeskApp, onBack: () -> Unit) {
 }
 
 @Composable
-private fun PlayerControls(app: PulseDeskApp, track: MediaSession, position: Double, volume: SystemVolume?, animations: Boolean) {
+private fun PlayerControls(
+    app: PulseDeskApp, track: MediaSession, position: Double, volume: SystemVolume?, animations: Boolean, wave: Boolean,
+) {
     val playing = track.status == PlayStatus.PLAYING
     var dragging by remember { mutableStateOf<Float?>(null) }
+    val players by app.connection.players.collectAsStateWithLifecycle()
+    val source by app.connection.source.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.fillMaxWidth()) {
-            Text("Сейчас играет на ПК" + if (track.source.isNotBlank()) " · ${track.source}" else "", fontSize = 12.sp, color = Palette.Text3)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (playing && animations) {
+                    NowPlayingBars(Modifier.size(14.dp, 12.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text("Сейчас играет на ПК" + if (track.source.isNotBlank()) " · ${track.source}" else "", fontSize = 12.sp, color = Palette.Text3)
+            }
             Text(track.title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
             if (track.artist.isNotBlank()) Text(track.artist, fontSize = 15.sp, color = Palette.Text2, maxLines = 1,
@@ -170,7 +182,8 @@ private fun PlayerControls(app: PulseDeskApp, track: MediaSession, position: Dou
         Spacer(Modifier.height(14.dp))
         if (track.duration > 0) {
             val shown = dragging?.let { it * track.duration } ?: position
-            SeekBar((shown / track.duration).toFloat(), onDrag = { dragging = it }) {
+            SeekBar((shown / track.duration).toFloat(), onDrag = { dragging = it },
+                wave = wave, playing = playing, motion = animations) {
                 dragging = null
                 app.connection.send("seek", (it * track.duration).coerceIn(0.0, track.duration))
             }
@@ -193,9 +206,11 @@ private fun PlayerControls(app: PulseDeskApp, track: MediaSession, position: Dou
             Control(AppIcons.Next, "Следующий трек", track.canNext, 56.dp) { app.connection.send("next") }
         }
         Spacer(Modifier.height(12.dp))
-        // The wave moves only while playing and when animations are on.
-        KiroXMotion(animate = playing && animations)
-        Spacer(Modifier.height(12.dp))
+        // The wave moves only while playing and when animations are on (not twice with the wave seek bar).
+        if (!wave) {
+            KiroXMotion(animate = playing && animations)
+            Spacer(Modifier.height(12.dp))
+        }
         volume?.let { level ->
             var value by remember(level.level) { mutableFloatStateOf(level.level / 100f) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -212,27 +227,81 @@ private fun PlayerControls(app: PulseDeskApp, track: MediaSession, position: Dou
             }
             Text("Громкость ПК" + if (level.muted) " · звук выключен" else "", fontSize = 11.sp, color = Palette.Text3)
         }
+        if (players.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Column(Modifier.fillMaxWidth()) {
+                Text("Источник музыки", fontSize = 12.sp, color = Palette.Text3)
+                Spacer(Modifier.height(6.dp))
+                SourceChips(players, source) { app.connection.chooseSource(it) }
+            }
+        }
+    }
+}
+
+/** Whose track to show and control: «Автоматически» (the PC decides) or one app on the PC. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SourceChips(players: List<Player>, selected: String, onPick: (String) -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for ((id, label) in listOf("" to "Автоматически") + players.map { it.id to it.source }) {
+            val on = id == selected
+            Text(label, fontSize = 13.sp, color = if (on) Palette.Black else Palette.Text2, maxLines = 1,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Palette.accent else Palette.Surface2)
+                    .clickable { onPick(id) }.padding(horizontal = 14.dp, vertical = 7.dp))
+        }
+    }
+}
+
+/** Four bars dancing next to «Сейчас играет» while a track plays. */
+@Composable
+private fun NowPlayingBars(modifier: Modifier) {
+    val accent = Palette.accent
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "eq")
+    val heights = listOf(1000 to 0, 800 to 300, 1150 to 600, 900 to 150).mapIndexed { i, (d, offset) ->
+        transition.animateFloat(0.25f, 1f, androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(d / 2), androidx.compose.animation.core.RepeatMode.Reverse,
+            androidx.compose.animation.core.StartOffset(offset)), label = "eq$i")
+    }
+    androidx.compose.foundation.Canvas(modifier) {
+        val gap = 2.dp.toPx()
+        val w = (size.width - gap * 3) / 4
+        heights.forEachIndexed { i, h ->
+            val bh = size.height * h.value
+            drawRoundRect(accent, androidx.compose.ui.geometry.Offset(i * (w + gap), size.height - bh),
+                androidx.compose.ui.geometry.Size(w, bh), androidx.compose.ui.geometry.CornerRadius(w / 2))
+        }
     }
 }
 
 /** Thin bar with a 28 dp touch area: tap to jump, drag to scrub (sent when the finger lifts). */
 @Composable
-fun SeekBar(fraction: Float, onDrag: (Float) -> Unit, onSeek: (Float) -> Unit) {
+fun SeekBar(
+    fraction: Float, onDrag: (Float) -> Unit, wave: Boolean = false, playing: Boolean = false, motion: Boolean = true,
+    onSeek: (Float) -> Unit,
+) {
     var current by remember { mutableFloatStateOf(0f) }
+    // The newest callbacks: the track (and its length) may change while this bar stays on screen.
+    val seekNow by androidx.compose.runtime.rememberUpdatedState(onSeek)
+    val dragNow by androidx.compose.runtime.rememberUpdatedState(onDrag)
     Box(
         Modifier.fillMaxWidth().height(28.dp)
-            .pointerInput(Unit) { detectTapGestures { onSeek((it.x / size.width).coerceIn(0f, 1f)) } }
+            .pointerInput(Unit) { detectTapGestures { seekNow((it.x / size.width).coerceIn(0f, 1f)) } }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragStart = { current = (it.x / size.width).coerceIn(0f, 1f); onDrag(current) },
-                    onHorizontalDrag = { change, _ -> current = (change.position.x / size.width).coerceIn(0f, 1f); onDrag(current) },
-                    onDragEnd = { onSeek(current) },
-                    onDragCancel = { onSeek(current) },
+                    onDragStart = { current = (it.x / size.width).coerceIn(0f, 1f); dragNow(current) },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        current = (change.position.x / size.width).coerceIn(0f, 1f); dragNow(current)
+                    },
+                    onDragEnd = { seekNow(current) },
+                    onDragCancel = { seekNow(current) },
                 )
             },
         contentAlignment = Alignment.Center,
     ) {
-        ThinProgress(fraction, Modifier.fillMaxWidth())
+        if (wave) SquigglyProgress(fraction, playing, motion, Modifier.fillMaxWidth().height(28.dp))
+        else ThinProgress(fraction, Modifier.fillMaxWidth())
     }
 }
 

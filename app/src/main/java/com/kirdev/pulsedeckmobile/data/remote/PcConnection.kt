@@ -9,6 +9,8 @@ import com.kirdev.pulsedeckmobile.data.model.ConnectionState
 import com.kirdev.pulsedeckmobile.data.model.MediaSession
 import com.kirdev.pulsedeckmobile.data.model.Metrics
 import com.kirdev.pulsedeckmobile.data.model.PairedPc
+import com.kirdev.pulsedeckmobile.data.model.PcActivity
+import com.kirdev.pulsedeckmobile.data.model.Player
 import com.kirdev.pulsedeckmobile.data.model.SystemVolume
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -55,6 +57,23 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
     private val _volume = MutableStateFlow<SystemVolume?>(null)
     val volume: StateFlow<SystemVolume?> = _volume.asStateFlow()
 
+    private val _players = MutableStateFlow<List<Player>>(emptyList())
+    /** Players the PC offers (music source); empty with PulseDeck before 1.0.4. */
+    val players: StateFlow<List<Player>> = _players.asStateFlow()
+
+    private val _activity = MutableStateFlow<PcActivity?>(null)
+    val activity: StateFlow<PcActivity?> = _activity.asStateFlow()
+
+    private val _source = MutableStateFlow("")
+    /** The chosen player ("" = automatic); sent again after every reconnection. */
+    val source: StateFlow<String> = _source.asStateFlow()
+
+    /** Follow this player ("" = automatic, as the PC decides). */
+    fun chooseSource(id: String) {
+        _source.value = id
+        socket?.send(Protocol.command("source", id))
+    }
+
     private val _endpoint = MutableStateFlow<Endpoint?>(null)
     /** Non-null only between «hello» and the end of the session. */
     val endpoint: StateFlow<Endpoint?> = _endpoint.asStateFlow()
@@ -66,6 +85,8 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
     private var coverJob: Job? = null
     /** The current session got as far as «hello»; a later loss restarts the backoff. */
     @Volatile private var sessionConnected = false
+    /** The loopback port answered with a foreign certificate: use Wi-Fi until the next restart. */
+    @Volatile private var skipUsb = false
 
     private enum class End { LOST, REVOKED, CERTIFICATE, STOPPED, USB }
 
@@ -115,11 +136,12 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
     }
 
     /** Playback command; returns false when there is no live connection. */
-    fun send(action: String, value: Number? = null): Boolean = socket?.send(Protocol.command(action, value)) ?: false
+    fun send(action: String, value: Any? = null): Boolean = socket?.send(Protocol.command(action, value)) ?: false
 
     /** After a new pairing or when the user leaves the connection screen. */
     fun restart() {
         stop()
+        skipUsb = false
         _state.value = store.load()?.let { ConnectionState.Connecting(it) } ?: ConnectionState.NotPaired
         start()
     }
@@ -137,7 +159,7 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
             if (failures == 0) _state.value = ConnectionState.Connecting(pc)
             sessionConnected = false
             // USB first: with the cable and adb, PulseDeck maps the phone's 127.0.0.1 to the PC.
-            val usb = usbReachable(pc.port)
+            val usb = !skipUsb && usbReachable(pc.port)
             when (connectOnce(pc, token, if (usb) LOOPBACK else pc.host, usb)) {
                 End.REVOKED -> {
                     store.clear()
@@ -146,6 +168,12 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
                     return
                 }
                 End.CERTIFICATE -> {
+                    // Something else answers on the phone's 127.0.0.1 (not PulseDeck through the cable):
+                    // go on over Wi-Fi instead of giving up.
+                    if (usb) {
+                        skipUsb = true
+                        continue
+                    }
                     _state.value = ConnectionState.CertificateChanged(pc)
                     return
                 }
@@ -184,6 +212,7 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
                     is Protocol.Message.Hello -> {
                         sessionConnected = true
                         webSocket.send(Protocol.subscribe(metrics = uiVisible, interval = interval))
+                        if (_source.value.isNotEmpty()) webSocket.send(Protocol.command("source", _source.value))
                         _endpoint.value = Endpoint("https://${PairingClient.hostPart(host)}:${pc.port}", token, http)
                         _state.value = ConnectionState.Connected(pc, message.pcName.ifBlank { pc.name }, usb)
                     }
@@ -192,6 +221,12 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
                         _volume.value = message.volume
                         onMedia(message.session, host, pc.port, token, http)
                     }
+                    is Protocol.Message.Sessions -> {
+                        _players.value = message.players
+                        // The chosen app stopped playing and left the list: back to automatic.
+                        if (_source.value.isNotEmpty() && message.players.none { it.id == _source.value }) chooseSource("")
+                    }
+                    is Protocol.Message.Activity -> _activity.value = message.activity
                     is Protocol.Message.Error -> Log.i(TAG, "PC: ${message.code}")      // never log tokens
                     else -> Unit
                 }
@@ -217,7 +252,7 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
             }
         })
         // On Wi-Fi, keep checking for the cable: USB is steadier, so switch as soon as it appears.
-        val usbWatch = if (usb) null else scope.launch {
+        val usbWatch = if (usb || skipUsb) null else scope.launch {
             while (isActive && !ended.isCompleted) {
                 delay(USB_CHECK_MS)
                 if (sessionConnected && usbReachable(pc.port)) ended.complete(End.USB)
@@ -274,6 +309,8 @@ class PcConnection(private val store: PairingStore, private val scope: Coroutine
     }
 
     private fun clearData() {
+        _players.value = emptyList()
+        _activity.value = null
         _volume.value = null
         _metrics.value = null
         _media.value = null

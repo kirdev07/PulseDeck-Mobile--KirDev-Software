@@ -68,6 +68,9 @@ class FilesViewModel(private val api: PcApi) : ViewModel() {
         return if (dir.endsWith("\\")) dir + item.name else "$dir\\${item.name}"
     }
 
+    /** The file waiting for the system «Save as» window (survives a rotation). */
+    val pendingDownload = androidx.compose.runtime.mutableStateOf<FileItem?>(null)
+
     /** PC → phone, into the document the user picked (Storage Access Framework, no storage permission). */
     fun download(item: FileItem, target: Uri, resolver: ContentResolver) {
         viewModelScope.launch {
@@ -79,6 +82,9 @@ class FilesViewModel(private val api: PcApi) : ViewModel() {
                     } ?: error("Не удалось создать файл на телефоне.")
                 }
                 "Сохранено на телефоне: ${item.name}"
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                runCatching { android.provider.DocumentsContract.deleteDocument(resolver, target) }
+                throw e
             } catch (e: Exception) {
                 runCatching { android.provider.DocumentsContract.deleteDocument(resolver, target) }   // no half-written file
                 e.message ?: "Ошибка скачивания."
@@ -90,12 +96,23 @@ class FilesViewModel(private val api: PcApi) : ViewModel() {
     /** Phone → PC. The PC stores uploads in its PulseDeck downloads folder only. */
     fun upload(source: Uri, resolver: ContentResolver) {
         viewModelScope.launch {
-            val (name, size) = withContext(Dispatchers.IO) { describe(resolver, source) }
+            val (name, size) = try {
+                withContext(Dispatchers.IO) { describe(resolver, source) }
+            } catch (e: Exception) {               // a provider that refuses to describe its file
+                _messages.value = "Файл недоступен."
+                return@launch
+            }
+            if (size > MAX_UPLOAD) {               // the PC refuses bigger files: say so before sending 200 MB
+                _messages.value = "Файл больше 200 МБ: ПК принимает файлы до 200 МБ."
+                return@launch
+            }
             _state.update { it.copy(transfer = "Отправка $name" to -1f) }
             _messages.value = try {
                 api.upload(name, size, { resolver.openInputStream(source) ?: error("Файл недоступен.") }) { done, total ->
                     progress("Отправка $name", done, total)
                 }.ifBlank { "Отправлено на ПК: $name" }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.message ?: "Ошибка отправки."
             }
@@ -139,10 +156,16 @@ class FilesViewModel(private val api: PcApi) : ViewModel() {
                 val answer = block()
                 _state.value.path?.let { show(it) }
                 answer.ifBlank { done }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.message ?: "Ошибка."
             }
         }
+    }
+
+    private companion object {
+        const val MAX_UPLOAD = 200L * 1024 * 1024        // MAX_FILE_BYTES of the PC (modules/local_api.py)
     }
 
     private fun sameFolder(a: String, b: String?) = a.trimEnd('\\').equals(b?.trimEnd('\\'), ignoreCase = true)

@@ -46,6 +46,9 @@ import com.kirdev.pulsedeckmobile.data.local.Prefs
 import com.kirdev.pulsedeckmobile.data.update.UpdateState
 import com.kirdev.pulsedeckmobile.feature.pulse.KiroXMotion
 import com.kirdev.pulsedeckmobile.navigation.Routes
+import com.kirdev.pulsedeckmobile.monitoring.AlertCenter
+import com.kirdev.pulsedeckmobile.monitoring.Limit
+import androidx.compose.runtime.setValue
 
 /** Screen 12. Every switch here changes real behaviour; nothing decorative. */
 @Composable
@@ -75,7 +78,12 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
                     prefs.mediaNotification) { on -> update { it.copy(mediaNotification = on) } }
                 Toggle("Громкость кнопками телефона", "Кнопки громкости меняют звук ПК, пока трек играет (не на паузе).",
                     prefs.remoteVolume) { on -> update { it.copy(remoteVolume = on) } }
+                Toggle("Ползунок волной", "Полоса времени трека волной, пока он играет, — как в плеере Android и One UI.",
+                    prefs.waveSeek) { on -> update { it.copy(waveSeek = on) } }
             }
+
+            SectionTitle("Предупреждения")
+            Alerts(prefs, update)
 
             SectionTitle("Интерфейс")
             PanelCard(Modifier.fillMaxWidth()) {
@@ -104,6 +112,7 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
 }
 
 /** Screen 13: theme, accent, animations, with a live preview. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
     val prefs by app.settings.values.collectAsStateWithLifecycle()
@@ -128,7 +137,7 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
                 }
             }
             SectionTitle("Цвет акцента")
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Accents.forEachIndexed { index, color ->
                     Box(Modifier.size(40.dp).clip(CircleShape).background(color)
                         .border(if (index == prefs.accent) 3.dp else 0.dp, Palette.Text2, CircleShape)
@@ -144,6 +153,53 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/** «Предупреждения»: limits, the «no connection» notice and system notifications. */
+@Composable
+private fun Alerts(prefs: Prefs, update: ((Prefs) -> Prefs) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var allowed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AlertCenter.allowed(context)) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {      // back from the system settings
+        allowed = AlertCenter.allowed(context)
+        onPauseOrDispose { }
+    }
+    PanelCard(Modifier.fillMaxWidth()) {
+        Toggle("Сообщать о нагрузке", "Если значение держится за порогом 10 секунд. Диск и батарея ПК — когда осталось меньше порога. " +
+            "Показатели приходят, пока приложение открыто.", prefs.alerts) { on -> update { it.copy(alerts = on) } }
+        if (prefs.alerts) {
+            for (limit in Limit.entries) LimitRow(limit, prefs.limit(limit)) { v -> update { it.copy(limits = it.limits + (limit to v)) } }
+        }
+        Toggle("Сообщать, если пропала связь", "Через 30 секунд без связи с ПК — и в фоне, пока в шторке карточка трека.",
+            prefs.alertOffline) { on -> update { it.copy(alertOffline = on) } }
+        Toggle("Системные уведомления",
+            if (allowed) "Предупреждения приходят и в шторку телефона." else "Android не разрешает уведомления PulseDesk. Нажмите, чтобы разрешить.",
+            prefs.notify && allowed) { on ->
+            if (on && !allowed) {
+                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            update { it.copy(notify = on) }
+        }
+    }
+}
+
+@Composable
+private fun LimitRow(limit: Limit, value: Int, onChange: (Int) -> Unit) {
+    var current by androidx.compose.runtime.remember(value) { androidx.compose.runtime.mutableFloatStateOf(value.toFloat()) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(limit.title, fontSize = 13.sp, color = Palette.Text2, modifier = Modifier.weight(1f))
+            Text("${if (limit.over) "≥" else "≤"} ${current.toInt()}%", fontSize = 13.sp, color = Palette.Text)
+        }
+        androidx.compose.material3.Slider(
+            value = current, onValueChange = { current = it }, onValueChangeFinished = { onChange(current.toInt()) },
+            valueRange = limit.range.first.toFloat()..limit.range.last.toFloat(),
+            colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Palette.accent, activeTrackColor = Palette.accent,
+                inactiveTrackColor = Palette.Track),
+        )
     }
 }
 
@@ -165,7 +221,7 @@ private fun Updates(app: PulseDeskApp) {
             ("Установить" to { app.updater.install(s.file) })
         is UpdateState.Failed -> s.message to check
     }
-    val notes = (state as? UpdateState.Available)?.release?.notes.orEmpty()
+    val notes = (state as? UpdateState.Available)?.release?.notes.orEmpty().replace("**", "").replace("`", "").trim()
     PanelCard(Modifier.fillMaxWidth()) {
         Text(text, fontSize = 14.sp, color = Palette.Text)
         if (notes.isNotEmpty()) {

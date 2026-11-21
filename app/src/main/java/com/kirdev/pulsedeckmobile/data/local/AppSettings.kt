@@ -2,6 +2,7 @@ package com.kirdev.pulsedeckmobile.data.local
 
 import android.content.Context
 import com.kirdev.pulsedeckmobile.core.theme.AppTheme
+import com.kirdev.pulsedeckmobile.monitoring.Limit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,17 @@ data class Prefs(
     val mediaNotification: Boolean = true,
     /** Phone volume keys change the PC volume while a track is playing. */
     val remoteVolume: Boolean = true,
-)
+    /** The seek bar as a wave while a track plays (as in Android / One UI). */
+    val waveSeek: Boolean = true,
+    /** «Предупреждения»: a notice when a value stays past its limit. */
+    val alerts: Boolean = true,
+    /** …also as a system notification. */
+    val notify: Boolean = false,
+    val alertOffline: Boolean = true,
+    val limits: Map<Limit, Int> = Limit.entries.associateWith { it.default },
+) {
+    fun limit(key: Limit): Int = (limits[key] ?: key.default).coerceIn(key.range)
+}
 
 /** Non-secret preferences. Tokens live in [PairingStore], encrypted with the Android Keystore. */
 class AppSettings(context: Context) {
@@ -37,6 +48,13 @@ class AppSettings(context: Context) {
             .putFloat("interval", next.intervalSeconds.toFloat())
             .putBoolean("media_notification", next.mediaNotification)
             .putBoolean("remote_volume", next.remoteVolume)
+            .putBoolean("wave_seek", next.waveSeek)
+            .putBoolean("alerts", next.alerts)
+            .putBoolean("notify", next.notify)
+            .putBoolean("alert_offline", next.alertOffline)
+            .apply {
+                for (key in Limit.entries) putInt("limit_${key.name}", next.limit(key))
+            }
             .apply()
         _prefs.value = next
     }
@@ -49,5 +67,10 @@ class AppSettings(context: Context) {
         intervalSeconds = prefs.getFloat("interval", 1.5f).toDouble(),
         mediaNotification = prefs.getBoolean("media_notification", true),
         remoteVolume = prefs.getBoolean("remote_volume", true),
+        waveSeek = prefs.getBoolean("wave_seek", true),
+        alerts = prefs.getBoolean("alerts", true),
+        notify = prefs.getBoolean("notify", false),
+        alertOffline = prefs.getBoolean("alert_offline", true),
+        limits = Limit.entries.associateWith { prefs.getInt("limit_${it.name}", it.default) },
     )
 }

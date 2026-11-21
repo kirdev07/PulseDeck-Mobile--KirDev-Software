@@ -56,10 +56,11 @@ fun FilesScreen(app: PulseDeskApp) {
     val connection by app.connection.state.collectAsStateWithLifecycle()
     val snack = LocalMessages.current
     val resolver = LocalContext.current.contentResolver
-    var pendingDownload by remember { mutableStateOf<FileItem?>(null) }
+    // Kept in the ViewModel: the phone may rotate while the system «Save as» window is open.
+    var pendingDownload by vm.pendingDownload
     var dialog by remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
 
-    val saveTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+    val saveTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val item = pendingDownload
         if (uri != null && item != null) vm.download(item, uri, resolver)
         pendingDownload = null
@@ -99,7 +100,7 @@ fun FilesScreen(app: PulseDeskApp) {
             s.error != null -> Placeholder(s.error!!, action = "Повторить", onAction = vm::reload)
             s.loading && s.items.isEmpty() && s.roots.isEmpty() -> Placeholder("Загрузка…")
             s.path == null -> LazyColumn(Modifier.padding(horizontal = 8.dp)) {
-                items(s.roots, key = { it.path }) { root ->
+                items(s.roots, key = { "${it.name}|${it.path}" }) { root ->
                     ListRow(if (root.path.length <= 3) AppIcons.Disk else AppIcons.Folder, root.name, root.path, chevron = true,
                         onClick = { vm.open(root.path) })
                 }

@@ -28,10 +28,22 @@ class EventsFeed(private val api: PcApi) {
     private val _events = MutableStateFlow<List<PcEvent>>(emptyList())
     val events: StateFlow<List<PcEvent>> = _events.asStateFlow()
     private var last = -1
+    private var source: Any? = null
 
-    /** Asks only for events newer than the last one seen. */
-    suspend fun refresh() {
-        val (fresh, newest) = api.events(last)
+    /** Asks only for events newer than the last one seen; starts over for another PC or a restarted one. */
+    suspend fun refresh(pc: Any? = null) {
+        if (pc != null && pc != source) {
+            source = pc
+            last = -1
+            _events.value = emptyList()
+        }
+        var (fresh, newest) = api.events(last)
+        if (newest < last) {                   // the PC program restarted: its numbers begin again at 1
+            last = -1
+            val again = api.events(last)
+            fresh = again.first
+            newest = again.second
+        }
         if (fresh.isNotEmpty()) _events.value = (fresh.reversed() + _events.value).distinctBy { it.id }.take(100)
         last = newest
     }
@@ -42,7 +54,7 @@ class EventsFeed(private val api: PcApi) {
 @Composable
 fun EventsScreen(app: PulseDeskApp, onBack: () -> Unit) {
     val events by app.events.events.collectAsStateWithLifecycle()
-    PollWhileVisible(EventsFeed.POLL_MS) { app.events.refresh() }
+    PollWhileVisible(EventsFeed.POLL_MS) { app.events.refresh((app.connection.state.value as? com.kirdev.pulsedeckmobile.data.model.ConnectionState.Connected)?.pc?.id) }
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader("События ПК", onBack)
         if (events.isEmpty()) Placeholder("Событий пока нет. Здесь появятся блокировка ПК и предупреждения о нагрузке.")

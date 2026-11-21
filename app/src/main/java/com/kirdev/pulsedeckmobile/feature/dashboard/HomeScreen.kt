@@ -39,6 +39,7 @@ import com.kirdev.pulsedeckmobile.core.ui.ThinProgress
 import com.kirdev.pulsedeckmobile.core.ui.TopTitle
 import com.kirdev.pulsedeckmobile.core.utils.Format
 import com.kirdev.pulsedeckmobile.data.model.ConnectionState
+import com.kirdev.pulsedeckmobile.data.model.PcActivity
 import com.kirdev.pulsedeckmobile.feature.monitoring.Names
 import com.kirdev.pulsedeckmobile.feature.notifications.EventRow
 import com.kirdev.pulsedeckmobile.feature.notifications.EventsFeed
@@ -50,8 +51,9 @@ fun HomeScreen(app: PulseDeskApp, go: (String) -> Unit) {
     val state by app.connection.state.collectAsStateWithLifecycle()
     val metrics by app.connection.metrics.collectAsStateWithLifecycle()
     val events by app.events.events.collectAsStateWithLifecycle()
+    val activity by app.connection.activity.collectAsStateWithLifecycle()
     val connected = state is ConnectionState.Connected
-    PollWhileVisible(EventsFeed.POLL_MS, connected) { if (connected) app.events.refresh() }
+    PollWhileVisible(EventsFeed.POLL_MS, connected) { if (connected) app.events.refresh((app.connection.state.value as? com.kirdev.pulsedeckmobile.data.model.ConnectionState.Connected)?.pc?.id) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())) {
         TopTitle("PulseDesk") {
@@ -59,7 +61,7 @@ fun HomeScreen(app: PulseDeskApp, go: (String) -> Unit) {
             IconButtonSmall(AppIcons.Settings, "Настройки", onClick = { go(Routes.SETTINGS) })
         }
         Column(Modifier.padding(horizontal = 16.dp)) {
-            PcCard(state) { go(Routes.DEVICES) }
+            PcCard(state, activity) { go(Routes.DEVICES) }
             Spacer(Modifier.size(12.dp))
             val m = metrics
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -77,6 +79,13 @@ fun HomeScreen(app: PulseDeskApp, go: (String) -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SmallStat(AppIcons.Network, "↓ ${Format.speed(m?.netDown)}", "↑ ${Format.speed(m?.netUp)}", Modifier.weight(1f))
                 SmallStat(AppIcons.Pulse, "Работает", Format.uptime(m?.uptime), Modifier.weight(1f))
+            }
+            m?.battery?.percent?.let { level ->          // laptops only
+                Spacer(Modifier.size(10.dp))
+                val plugged = m.battery.plugged
+                SmallStat(AppIcons.Battery, "Батарея ПК ${level.toInt()}%",
+                    if (plugged) "на зарядке" else if (level <= 20) "мало заряда — подключите зарядку" else "от батареи",
+                    Modifier.fillMaxWidth())
             }
             if (m != null && m.disks.isNotEmpty()) {
                 SectionTitle("Диски")
@@ -106,7 +115,7 @@ fun HomeScreen(app: PulseDeskApp, go: (String) -> Unit) {
 }
 
 @Composable
-private fun PcCard(state: ConnectionState, onClick: () -> Unit) {
+private fun PcCard(state: ConnectionState, activity: PcActivity?, onClick: () -> Unit) {
     val (name, status, live) = when (state) {
         is ConnectionState.Connected -> Triple(state.pcName, if (state.usb) "Подключён · USB" else "Подключён · ${state.pc.host}", true)
         is ConnectionState.Connecting -> Triple(state.pc.name, "Подключение…", false)
@@ -125,6 +134,11 @@ private fun PcCard(state: ConnectionState, onClick: () -> Unit) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(if (live) Palette.Text else Palette.Disabled))
                     Spacer(Modifier.width(6.dp))
                     Text(status, fontSize = 12.sp, color = Palette.Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (live && activity != null) {
+                    val title = activity.title.takeIf { it.isNotBlank() && it != activity.app }?.let { " — $it" }.orEmpty()
+                    Text((if (activity.fullscreen) "На весь экран: " else "Сейчас: ") + activity.app + title,
+                        fontSize = 12.sp, color = Palette.Text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             Icon(AppIcons.Chevron, null, tint = Palette.Text3, modifier = Modifier.size(18.dp))

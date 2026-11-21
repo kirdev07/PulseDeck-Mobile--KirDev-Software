@@ -70,7 +70,7 @@ class MediaNotificationService : Service() {
         }
         // In the foreground before anything can call stopSelf (the collector below may run at once):
         // a service started with startForegroundService that stops first crashes the app.
-        startForeground(ID, build(app.connection.media.value, PlayerState.PAUSED), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        androidx.core.app.ServiceCompat.startForeground(this, ID, build(app.connection.media.value, PlayerState.PAUSED), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         app.connection.hold(HOLDER)
         scope.launch {
             combine(app.connection.state, app.connection.media, app.connection.cover, app.connection.volume,
@@ -82,7 +82,7 @@ class MediaNotificationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Must be in the foreground within seconds of startForegroundService, with a real card.
-        startForeground(ID, build(app.connection.media.value, PlayerState.PAUSED), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        androidx.core.app.ServiceCompat.startForeground(this, ID, build(app.connection.media.value, PlayerState.PAUSED), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         when (intent?.action) {
             ACTION_TOGGLE -> command("toggle")
             ACTION_NEXT -> command("next")

@@ -170,7 +170,7 @@ private fun PlayerControls(
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (playing && animations) {
+                if (playing && animations && !com.kirdev.pulsedeckmobile.core.ui.Device.lite) {
                     NowPlayingBars(Modifier.size(14.dp, 12.dp))
                     Spacer(Modifier.width(8.dp))
                 }

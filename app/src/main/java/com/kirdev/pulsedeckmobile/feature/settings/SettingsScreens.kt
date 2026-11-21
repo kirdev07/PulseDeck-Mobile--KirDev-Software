@@ -35,6 +35,7 @@ import com.kirdev.pulsedeckmobile.PulseDeskApp
 import com.kirdev.pulsedeckmobile.core.theme.Palette
 import com.kirdev.pulsedeckmobile.core.ui.AppIcons
 import com.kirdev.pulsedeckmobile.core.ui.ListRow
+import com.kirdev.pulsedeckmobile.core.ui.currentDisplay
 import com.kirdev.pulsedeckmobile.core.ui.PanelCard
 import com.kirdev.pulsedeckmobile.core.ui.PanelSwitch
 import com.kirdev.pulsedeckmobile.core.ui.ScreenHeader
@@ -194,14 +195,22 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
                     "Выключено — всегда книжная.", prefs.rotate) { on -> set { it.copy(rotate = on) } }
             }
             SectionTitle("Частота кадров")
-            val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-            val top = com.kirdev.pulsedeckmobile.core.ui.Frames.maxRate(activity?.display)
+            val activity = androidx.activity.compose.LocalActivity.current
+            val top = com.kirdev.pulsedeckmobile.core.ui.Frames.maxRate(activity?.let { it.currentDisplay() })
             val names = mapOf("auto" to "Как в системе", "eco" to "Экономно · 60", "max" to "Максимум · $top Гц")
             Chips(listOf("auto", "eco") + (if (top > 60) listOf("max") else emptyList()), prefs.frameRate,
                 { names[it].orEmpty() }) { v -> set { it.copy(frameRate = v) } }
             Spacer(Modifier.height(6.dp))
             Text("Экономно — экран переключается на 60 Гц и меньше тратит батарею. Максимум — самая плавная прокрутка и анимации. " +
                 "Некоторые оболочки (например, MIUI) держат свою частоту из настроек телефона.",
+                fontSize = 12.sp, color = Palette.Text2, modifier = Modifier.padding(horizontal = 4.dp))
+            SectionTitle("Облегчённый режим")
+            Chips(listOf("auto", "on", "off"), prefs.lite, { mapOf("auto" to "Авто", "on" to "Включён", "off" to "Выключен")[it].orEmpty() }) { v ->
+                set { it.copy(lite = v) }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("Для слабых телефонов: анимации 30 кадров, без переходов между экранами и полосок «играет». Этот телефон: " +
+                com.kirdev.pulsedeckmobile.core.ui.Device.summary() + ".",
                 fontSize = 12.sp, color = Palette.Text2, modifier = Modifier.padding(horizontal = 4.dp))
             Spacer(Modifier.height(24.dp))
         }

@@ -215,7 +215,7 @@ private fun SideTabs(nav: NavHostController, route: String?) {
 /** Landscape: the system buttons sit on a side; keep content and the mini player clear of them. */
 private val sideInsets @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
 
-private fun animations(app: PulseDeskApp) = app.settings.values.value.animations
+private fun animations(app: PulseDeskApp) = app.settings.values.value.animations && !com.kirdev.pulsedeckmobile.core.ui.Device.lite
 
 @Composable
 private fun BottomTabs(nav: NavHostController, route: String?) {

@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 
 /** Single instances shared by all screens (no DI framework: the graph is this small). */
 class PulseDeskApp : Application() {
+    /** The launch animation already played in this process (not again after a rotation or a return). */
+    var introDone = false
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     lateinit var pairing: PairingStore
     lateinit var settings: AppSettings
@@ -40,6 +42,7 @@ class PulseDeskApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.kirdev.pulsedeckmobile.core.ui.Device.probe(this)
         pairing = PairingStore(this)
         settings = AppSettings(this)
         connection = PcConnection(pairing, scope)

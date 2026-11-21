@@ -1,9 +1,11 @@
 package com.kirdev.pulsedeckmobile
 
+import androidx.compose.runtime.setValue
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import com.kirdev.pulsedeckmobile.core.ui.currentDisplay
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
@@ -29,7 +31,9 @@ class MainActivity : ComponentActivity() {
         applyOrientation(app.settings.values.value.rotate)        // before the first frame: no turn on start
         lifecycleScope.launch {
             app.settings.values.collect {
-                com.kirdev.pulsedeckmobile.core.ui.Frames.apply(window, display, it.frameRate)
+                com.kirdev.pulsedeckmobile.core.ui.Device.apply(it.lite)
+                com.kirdev.pulsedeckmobile.core.ui.Frames.apply(window, currentDisplay(), it.frameRate,
+                    com.kirdev.pulsedeckmobile.core.ui.Device.lite)
                 applyOrientation(it.rotate)
             }
         }
@@ -39,7 +43,17 @@ class MainActivity : ComponentActivity() {
             PulseDeskTheme(prefs) {
                 Box(Modifier.fillMaxSize()) {
                     AppNavigation(app)
-                    AppOverlays(app)          // local network permission (Android 17), update prompt
+                    AppOverlays(app)
+                    var intro by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(!app.introDone) }
+                    if (intro) {
+                        com.kirdev.pulsedeckmobile.core.ui.LaunchIntro(
+                            enabled = prefs.animations && !com.kirdev.pulsedeckmobile.core.ui.Device.lite,
+                            background = com.kirdev.pulsedeckmobile.core.theme.Palette.Black,
+                        ) {
+                            app.introDone = true
+                            intro = false
+                        }
+                    }          // local network permission (Android 17), update prompt
                 }
             }
         }

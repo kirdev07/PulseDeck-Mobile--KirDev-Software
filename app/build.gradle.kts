@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         applicationId = "com.kirdev.pulsedeckmobile"
-        minSdk = 30
+        minSdk = 26
         targetSdk = 37
         versionCode = 4
         versionName = "1.0.3"

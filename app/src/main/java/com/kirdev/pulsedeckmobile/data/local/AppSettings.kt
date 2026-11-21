@@ -30,6 +30,8 @@ data class Prefs(
     val frameRate: String = "auto",
     /** Turn with the phone (landscape too); off = always portrait. */
     val rotate: Boolean = false,
+    /** «Облегчённый режим»: auto (weak phones) / on / off (core/ui/Device.kt). */
+    val lite: String = "auto",
     /** «Предупреждения»: a notice when a value stays past its limit. */
     val alerts: Boolean = true,
     /** …also as a system notification. */
@@ -62,6 +64,7 @@ class AppSettings(context: Context) {
             .putBoolean("wave_seek", next.waveSeek)
             .putString("frame_rate", next.frameRate)
             .putBoolean("rotate", next.rotate)
+            .putString("lite", next.lite)
             .putBoolean("alerts", next.alerts)
             .putBoolean("notify", next.notify)
             .putBoolean("alert_offline", next.alertOffline)
@@ -89,6 +92,7 @@ class AppSettings(context: Context) {
         waveSeek = prefs.getBoolean("wave_seek", true),
         frameRate = prefs.getString("frame_rate", null) ?: "auto",
         rotate = prefs.getBoolean("rotate", false),
+        lite = prefs.getString("lite", null) ?: "auto",
         alerts = prefs.getBoolean("alerts", true),
         notify = prefs.getBoolean("notify", false),
         alertOffline = prefs.getBoolean("alert_offline", true),

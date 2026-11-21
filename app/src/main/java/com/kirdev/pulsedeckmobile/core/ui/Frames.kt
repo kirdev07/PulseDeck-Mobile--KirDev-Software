@@ -28,11 +28,11 @@ object Frames {
         display?.let { d -> sameSize(d).maxOfOrNull { it.refreshRate }?.toInt() } ?: 60
 
     /** Applies a choice: the animation limit and the display mode the window prefers. */
-    fun apply(window: Window?, display: Display?, choice: String) {
-        limit = if (choice == "eco") 60 else 0
+    fun apply(window: Window?, display: Display?, choice: String, lite: Boolean = false) {
+        limit = if (lite) 30 else if (choice == "eco") 60 else 0
         if (window == null || display == null) return
         val modes = sameSize(display)
-        val mode = when (choice) {
+        val mode = when (if (lite) "eco" else choice) {
             "max" -> modes.maxByOrNull { it.refreshRate }
             "eco" -> modes.minByOrNull { abs(it.refreshRate - 60f) }
             else -> null                                  // auto: no preference, the system decides

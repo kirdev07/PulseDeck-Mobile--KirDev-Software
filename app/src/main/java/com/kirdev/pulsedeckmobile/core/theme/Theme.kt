@@ -60,8 +60,8 @@ private val ACCENTS: Map<String, Pair<Tones, Tones>> = mapOf(          // dark, 
         Tones(0xFF8B5000, 0xFFFFFFFF, 0xFFFFDCC2, 0xFF2D1600, 0xFFF5DED0, 0xFF261A12)),
     "pink" to (Tones(0xFFFFB0CB, 0xFF5E1133, 0xFF7B2949, 0xFFFFD9E3, 0xFF5C3F48, 0xFFFFD9E3) to
         Tones(0xFF984061, 0xFFFFFFFF, 0xFFFFD9E2, 0xFF3E001D, 0xFFFFD9E2, 0xFF31111D)),
-    "mono" to (Tones(0xFFFFFFFF, 0xFF000000, 0xFF3A3A3A, 0xFFFFFFFF, 0xFF2E2E2E, 0xFFEDEDED) to
-        Tones(0xFF111111, 0xFFFFFFFF, 0xFFE2E2E2, 0xFF111111, 0xFFE8E8E8, 0xFF111111)),
+    "mono" to (Tones(0xFFFFFFFF, 0xFF000000, 0xFF3A3A3A, 0xFFFFFFFF, 0xFF3A3A3A, 0xFFEDEDED) to
+        Tones(0xFF111111, 0xFFFFFFFF, 0xFFE2E2E2, 0xFF111111, 0xFFD4D4D4, 0xFF111111)),
 )
 
 fun buildRoles(prefs: Prefs, systemDark: Boolean, context: Context?): Roles {
@@ -134,7 +134,9 @@ fun PulseDeskTheme(prefs: Prefs, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val systemDark = isSystemInDarkTheme()
     val roles = remember(prefs.style, prefs.mode, prefs.accentKey, prefs.amoled, systemDark) { buildRoles(prefs, systemDark, context) }
-    if (Palette.roles != roles) Palette.roles = roles
+    // Written here so the screens below read the new roles in this same pass; compared without
+    // observing, so the theme does not recompose itself once more.
+    if (androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { Palette.roles } != roles) Palette.roles = roles
     val view = LocalView.current
     SideEffect {                                   // dark icons on the status bar in the light theme
         (view.context as? Activity)?.window?.let { window ->

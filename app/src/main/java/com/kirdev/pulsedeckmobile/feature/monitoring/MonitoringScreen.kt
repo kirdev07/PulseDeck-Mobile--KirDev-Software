@@ -148,7 +148,8 @@ private fun Headline(title: String, subtitle: String, value: String) {
                 Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text)
                 Text(subtitle, fontSize = 13.sp, color = Palette.Text2)
             }
-            Text(value, fontSize = 36.sp, fontWeight = FontWeight.Normal, color = Palette.accent)
+            Text(value, fontSize = if (value.length > 6) 24.sp else 36.sp, fontWeight = FontWeight.Normal, color = Palette.accent,
+                maxLines = 1)
         }
     }
 }

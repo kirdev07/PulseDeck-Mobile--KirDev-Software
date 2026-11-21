@@ -200,7 +200,7 @@ fun ControlScreen(app: PulseDeskApp, go: (String) -> Unit) {
         // Full screen on black; a tap anywhere closes it.
         Dialog(onDismissRequest = { screenshot = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Image(image, "Скриншот ПК", contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().background(Palette.Black).clickable { screenshot = null })
+                modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black).clickable { screenshot = null })
         }
     }
 }
@@ -251,8 +251,10 @@ private fun Tile(
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Icon(icon, null, tint = fg, modifier = Modifier.size(26.dp))
-        Text(title, fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = fg, maxLines = 1,
-            softWrap = false)
+        // Shrinks on narrow phones and with big system fonts instead of cutting «Перезагрузить».
+        androidx.compose.foundation.text.BasicText(title, maxLines = 1,
+            style = androidx.compose.ui.text.TextStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = fg),
+            autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 13.sp))
     }
 }
 

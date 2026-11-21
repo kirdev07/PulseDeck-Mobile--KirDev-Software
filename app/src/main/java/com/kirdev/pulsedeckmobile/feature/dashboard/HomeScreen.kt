@@ -189,9 +189,9 @@ private fun SmallStat(icon: ImageVector, top: String, bottom: String, modifier: 
         verticalAlignment = Alignment.CenterVertically) {
         com.kirdev.pulsedeckmobile.core.ui.IconBadge(icon)
         Spacer(Modifier.width(12.dp))
-        Column {
-            Text(top, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 1)
-            Text(bottom, fontSize = 12.sp, color = Palette.Text2, maxLines = 1)
+        Column(Modifier.weight(1f)) {
+            Text(top, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(bottom, fontSize = 12.sp, color = Palette.Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

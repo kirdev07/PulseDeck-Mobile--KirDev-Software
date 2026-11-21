@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -130,9 +131,9 @@ fun IconBadge(icon: ImageVector, modifier: Modifier = Modifier, size: Dp = 40.dp
 fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     Row(
-        modifier.height(32.dp).clip(shape)
+        modifier.minimumInteractiveComponentSize().height(32.dp).clip(shape)
             .then(if (selected) Modifier.background(Palette.Tonal) else Modifier.border(1.dp, Palette.Outline, shape))
-            .clickable(onClick = onClick).padding(horizontal = 12.dp),
+            .clickable(role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (selected) {
@@ -147,20 +148,21 @@ fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Modifier, 
 @Composable
 fun Segmented(options: List<Pair<String, String>>, selected: String, modifier: Modifier = Modifier, onPick: (String) -> Unit) {
     val shape = RoundedCornerShape(20.dp)
-    Row(modifier.fillMaxWidth().height(40.dp).clip(shape).border(1.dp, Palette.Outline, shape)) {
+    Row(modifier.fillMaxWidth().height(48.dp).padding(vertical = 4.dp).clip(shape).border(1.dp, Palette.Outline, shape)) {
         options.forEachIndexed { index, (key, label) ->
             if (index > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Outline))
             val on = key == selected
             Row(
                 Modifier.weight(1f).fillMaxHeight().background(if (on) Palette.Tonal else androidx.compose.ui.graphics.Color.Transparent)
-                    .clickable { onPick(key) },
+                    .clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { onPick(key) }.padding(horizontal = 4.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (on) {
+                if (on && options.size <= 2) {          // three and more: no room for the check
                     Icon(AppIcons.Check, contentDescription = null, tint = Palette.OnTonal, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                 }
-                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = if (on) Palette.OnTonal else Palette.Text, maxLines = 1)
+                Text(label, fontSize = 14.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (on) Palette.OnTonal else Palette.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -176,7 +178,7 @@ fun M3Slider(value: Float, onMove: (Float) -> Unit, onDone: (Float) -> Unit, mod
     val doneNow by androidx.compose.runtime.rememberUpdatedState(onDone)
     val moveNow by androidx.compose.runtime.rememberUpdatedState(onMove)
     Box(
-        modifier.fillMaxWidth().height(44.dp)
+        modifier.fillMaxWidth().height(48.dp)
             .pointerInput(Unit) {
                 detectTapGestures { current = (it.x / size.width).coerceIn(0f, 1f); moveNow(current); doneNow(current) }
             }
@@ -191,8 +193,8 @@ fun M3Slider(value: Float, onMove: (Float) -> Unit, onDone: (Float) -> Unit, mod
         contentAlignment = Alignment.CenterStart,
     ) {
         val active = Palette.accent
-        val rest = Palette.Tonal
-        Canvas(Modifier.fillMaxWidth().height(44.dp)) {
+        val rest = Palette.Track
+        Canvas(Modifier.fillMaxWidth().height(48.dp)) {
             val v = value.coerceIn(0f, 1f)
             val gap = 6.dp.toPx()
             val handle = 4.dp.toPx()
@@ -327,7 +329,7 @@ fun PanelSwitch(checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean 
 fun PillButton(text: String, modifier: Modifier = Modifier, primary: Boolean = true, enabled: Boolean = true, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
     Box(
-        modifier.height(44.dp).clip(shape)
+        modifier.height(48.dp).clip(shape)
             .then(if (primary) Modifier.background(if (enabled) Palette.accent else Palette.Disabled.copy(alpha = 0.12f))
                   else Modifier.border(1.dp, if (enabled) Palette.Outline else Palette.Disabled, shape))
             .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 24.dp),

@@ -1,6 +1,7 @@
 package com.kirdev.pulsedeckmobile.feature.files
 
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
@@ -103,7 +104,7 @@ fun FilesScreen(app: PulseDeskApp) {
                 )
                 Icon(AppIcons.Search, null, tint = Palette.Text2, modifier = Modifier.padding(end = 12.dp).size(22.dp))
             }
-            // Where we are: the last two folders of the path, the current one as a tonal chip.
+            // Where we are: the last three folders of the path, the current one as a tonal chip (it gets the room).
             val parts = s.path!!.trimEnd('\\').split('\\').filter { it.isNotBlank() }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 parts.takeLast(3).forEachIndexed { i, part ->
@@ -111,8 +112,9 @@ fun FilesScreen(app: PulseDeskApp) {
                     if (i > 0) Text("›", fontSize = 14.sp, color = Palette.Text2, modifier = Modifier.padding(horizontal = 4.dp))
                     Text(part, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, maxLines = 1,
                         color = if (last) Palette.OnTonal else Palette.Text2,
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).then(if (last) Modifier.background(Palette.Tonal) else Modifier)
-                            .padding(horizontal = 10.dp, vertical = 6.dp).weight(1f, fill = false))
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(if (last) 3f else 1f, fill = false).clip(RoundedCornerShape(8.dp))
+                            .then(if (last) Modifier.background(Palette.Tonal) else Modifier).padding(horizontal = 10.dp, vertical = 6.dp))
                 }
             }
         }
@@ -140,7 +142,8 @@ fun FilesScreen(app: PulseDeskApp) {
             else -> {
                 val shown = if (s.query.isBlank()) s.items else s.items.filter { it.name.contains(s.query, ignoreCase = true) }
                 if (shown.isEmpty()) Placeholder(if (s.query.isBlank()) "Папка пуста." else "Ничего не найдено.")
-                LazyColumn(Modifier.padding(horizontal = 8.dp)) {
+                // Room at the bottom: the last row's menu stays reachable under the «Отправить на ПК» button.
+                LazyColumn(Modifier.padding(horizontal = 8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
                     items(shown, key = { it.name }) { item ->
                         FileRow(item,
                             onOpen = { if (item.dir) vm.open(vm.child(item)) },
@@ -159,7 +162,9 @@ fun FilesScreen(app: PulseDeskApp) {
     }
     dialog?.invoke()
     // Extended FAB: the main action of this screen.
-    Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomEnd) {
+    val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    Box(Modifier.fillMaxSize().then(if (landscape) Modifier.navigationBarsPadding() else Modifier).padding(16.dp),
+        contentAlignment = Alignment.BottomEnd) {
         if (connection is ConnectionState.Connected) Row(
             Modifier.height(56.dp).clip(RoundedCornerShape(16.dp)).background(Palette.Container)
                 .clickable { pick.launch(arrayOf("*/*")) }.padding(start = 16.dp, end = 20.dp),

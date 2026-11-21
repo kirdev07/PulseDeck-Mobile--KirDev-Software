@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        debugOpen(intent)
         setContent {
             val prefs by app.settings.values.collectAsStateWithLifecycle()
             PulseDeskTheme(prefs) {
@@ -35,6 +36,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        debugOpen(intent)
+    }
+
+    private fun debugOpen(intent: android.content.Intent?) {
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+        intent?.getStringExtra("open")?.let { app.debugOpen.value = it }
     }
 
     override fun onStart() {

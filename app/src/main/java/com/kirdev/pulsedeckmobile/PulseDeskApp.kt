@@ -35,6 +35,9 @@ class PulseDeskApp : Application() {
     /** The activity is started (on screen): set by MainActivity.onStart/onStop. */
     val visible = MutableStateFlow(false)
 
+    /** Debug builds only: `adb shell am start … --es open music` opens a screen (for screenshots in tests). */
+    val debugOpen = MutableStateFlow<String?>(null)
+
     override fun onCreate() {
         super.onCreate()
         pairing = PairingStore(this)

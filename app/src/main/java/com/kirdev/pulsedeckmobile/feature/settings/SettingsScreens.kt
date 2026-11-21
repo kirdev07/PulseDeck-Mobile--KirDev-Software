@@ -147,11 +147,11 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
 
             if (prefs.style != "mono") {
                 SectionTitle("Цвет")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (android.os.Build.VERSION.SDK_INT >= 31) {
                         // Material You: four quarters hint at «from the wallpaper».
                         val on = prefs.accentKey == "wallpaper"
-                        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp))
+                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
                             .border(if (on) 3.dp else 0.dp, if (on) Palette.Text else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(16.dp))
                             .clickable { set { it.copy(accentKey = "wallpaper") } }) {
                             Column(Modifier.fillMaxSize()) {
@@ -168,7 +168,7 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
                     }
                     for ((key, _, color) in com.kirdev.pulsedeckmobile.core.theme.AccentChoices) {
                         val on = prefs.accentKey == key
-                        Box(Modifier.size(52.dp).clip(CircleShape)
+                        Box(Modifier.size(48.dp).clip(CircleShape)
                             .border(3.dp, if (on) Palette.Text else androidx.compose.ui.graphics.Color.Transparent, CircleShape)
                             .padding(5.dp).clip(CircleShape).background(color)
                             .clickable { set { it.copy(accentKey = key) } })
@@ -183,7 +183,8 @@ fun AppearanceScreen(app: PulseDeskApp, onBack: () -> Unit) {
 
             SectionTitle("Экран")
             PanelCard(Modifier.fillMaxWidth(), color = Palette.roles.s1) {
-                Toggle("Чёрный фон AMOLED", "В тёмной теме — чистый чёрный: экономит заряд на OLED-экранах.", prefs.amoled) { on ->
+                Toggle("Чёрный фон AMOLED", if (Palette.roles.dark) "Чистый чёрный: экономит заряд на OLED-экранах."
+                    else "Работает в тёмной теме.", prefs.amoled) { on ->
                     set { it.copy(amoled = on) }
                 }
                 Toggle("Анимации", "Волна, переходы, полоски «играет». Если в Android анимации выключены, они выключены и здесь.",

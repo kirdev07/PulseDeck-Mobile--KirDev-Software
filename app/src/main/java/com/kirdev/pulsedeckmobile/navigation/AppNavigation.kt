@@ -130,6 +130,10 @@ private fun Main(app: PulseDeskApp, messages: SnackbarHostState) {
     val state by app.connection.state.collectAsStateWithLifecycle()
     val media by app.connection.media.collectAsStateWithLifecycle()
     val showPlayer = playerState(state, media).hasTrack && route != Routes.MUSIC && route != Routes.PAIR
+    val open by app.debugOpen.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(open) {
+        open?.let { target -> runCatching { nav.navigate(target) }; app.debugOpen.value = null }
+    }
     val showTabs = route in Tabs.map { it.route }
 
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE

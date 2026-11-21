@@ -69,9 +69,12 @@ class AppSettings(context: Context) {
     private fun read() = Prefs(
         style = prefs.getString("style", null) ?: "color",
         mode = prefs.getString("mode", null) ?: "dark",
-        accentKey = prefs.getString("accent_key", null) ?: "purple",
-        // 1.0.x had «AMOLED» and «Graphite» themes: AMOLED carries over as the black background.
-        amoled = if (prefs.contains("amoled")) prefs.getBoolean("amoled", false) else prefs.getString("theme", "AMOLED") == "AMOLED",
+        // 1.0.3 accents (an index): a colour picked there carries over; the greys meant «as before».
+        accentKey = prefs.getString("accent_key", null)
+            ?: mapOf(4 to "blue", 5 to "green", 6 to "purple", 7 to "orange", 8 to "pink", 9 to "pink")[prefs.getInt("accent", 0)]
+            ?: "purple",
+        // 1.0.x had «AMOLED» and «Graphite» themes: an AMOLED chosen there carries over as the black background.
+        amoled = if (prefs.contains("amoled")) prefs.getBoolean("amoled", false) else prefs.getString("theme", null) == "AMOLED",
         animations = prefs.getBoolean("animations", true),
         compact = prefs.getBoolean("compact", false),
         intervalSeconds = prefs.getFloat("interval", 1.5f).toDouble(),

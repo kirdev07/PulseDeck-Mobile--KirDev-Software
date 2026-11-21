@@ -49,29 +49,54 @@ import com.kirdev.pulsedeckmobile.navigation.Routes
 import com.kirdev.pulsedeckmobile.monitoring.AlertCenter
 import com.kirdev.pulsedeckmobile.monitoring.Limit
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 
 /** Screen 12. Every switch here changes real behaviour; nothing decorative. */
 @Composable
 fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) {
     val prefs by app.settings.values.collectAsStateWithLifecycle()
     val update: ((Prefs) -> Prefs) -> Unit = app.settings::update
+    var query by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    val sections = androidx.compose.runtime.remember { SECTIONS.associateWith { androidx.compose.foundation.relocation.BringIntoViewRequester() } }
+    var jump by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(jump) {
+        val target = jump ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(60)                      // the full list is back on screen first
+        sections[target]?.bringIntoView()
+        jump = null
+    }
+    fun anchor(name: String) = Modifier.bringIntoViewRequester(sections.getValue(name))
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenHeader("Настройки", onBack)
+        SearchPill(query, { query = it })
+        if (query.isNotBlank()) {
+            val found = SEARCH.filter { e -> (e.title + " " + e.words).contains(query.trim(), ignoreCase = true) }
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                if (found.isEmpty()) Text("Ничего не найдено.", fontSize = 14.sp, color = Palette.Text2, modifier = Modifier.padding(8.dp))
+                found.forEach { e ->
+                    SettingRow(e.icon, e.tone, e.title, e.section, onClick = {
+                        query = ""
+                        if (e.section in SECTIONS) jump = e.section else go(Routes.APPEARANCE)
+                    })
+                }
+            }
+            return@Column
+        }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            SectionTitle("Подключение")
+            SectionTitle("Подключение", anchor("Подключение"))
             PanelCard(Modifier.fillMaxWidth().enter(0)) {
                 SettingRow(AppIcons.Devices, Tone.Teal, "Компьютеры", "Сохранённые ПК, переключение, новый ПК", onClick = { go(Routes.DEVICES) })
                 SettingRow(AppIcons.Usb, Tone.Blue, "USB-кабель", "Включите «Отладку по USB» — PulseDeck сам переключит связь на кабель")
             }
 
-            SectionTitle("Мониторинг")
+            SectionTitle("Мониторинг", anchor("Мониторинг"))
             PanelCard(Modifier.fillMaxWidth().enter(1)) {
                 SettingRow(AppIcons.Pulse, Tone.Blue, "Частота обновления", "Реже — меньше нагрузка на ПК и батарею. В фоне показатели не запрашиваются.")
                 Spacer(Modifier.height(4.dp))
                 Chips(listOf(1.0, 1.5, 3.0, 5.0, 10.0), prefs.intervalSeconds, Format::seconds) { v -> update { it.copy(intervalSeconds = v) } }
             }
 
-            SectionTitle("Музыка")
+            SectionTitle("Музыка", anchor("Музыка"))
             PanelCard(Modifier.fillMaxWidth().enter(2)) {
                 Toggle("Карточка в шторке", "Обложка и кнопки на экране блокировки, пока на ПК играет трек. Без трека карточки нет.",
                     prefs.mediaNotification, AppIcons.Music, Tone.Pink) { on -> update { it.copy(mediaNotification = on) } }
@@ -81,17 +106,17 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
                     prefs.waveSeek, AppIcons.Pulse, Tone.Pink) { on -> update { it.copy(waveSeek = on) } }
             }
 
-            SectionTitle("Предупреждения")
+            SectionTitle("Предупреждения", anchor("Предупреждения"))
             Alerts(prefs, update)
 
-            SectionTitle("Интерфейс")
+            SectionTitle("Интерфейс", anchor("Интерфейс"))
             PanelCard(Modifier.fillMaxWidth().enter(3)) {
                 SettingRow(AppIcons.Palette, Tone.Violet, "Оформление", (if (prefs.style == "mono") "Чёрно-белый" else "Цветной") + ", " +
                     mapOf("dark" to "тёмная", "light" to "светлая", "system" to "как в системе")[prefs.mode].orEmpty(),
                     onClick = { go(Routes.APPEARANCE) })
             }
 
-            SectionTitle("Безопасность")
+            SectionTitle("Безопасность", anchor("Безопасность"))
             PanelCard(Modifier.fillMaxWidth().enter(4)) {
                 SettingRow(AppIcons.Lock, Tone.Teal, "Защищённая связь", "TLS, ключ в Android Keystore")
                 Spacer(Modifier.height(6.dp))
@@ -101,12 +126,12 @@ fun SettingsScreen(app: PulseDeskApp, onBack: () -> Unit, go: (String) -> Unit) 
                     fontSize = 12.sp, color = Palette.Text2, lineHeight = 17.sp)
             }
 
-            SectionTitle("О приложении")
+            SectionTitle("О приложении", anchor("О приложении"))
             PanelCard(Modifier.fillMaxWidth().enter(5)) {
                 SettingRow(AppIcons.Info, Tone.Violet, "PulseDesk ${BuildConfigInfo.version(app)}", "Клиент PulseDeck для Windows · KiroX Systems")
             }
 
-            SectionTitle("Обновления")
+            SectionTitle("Обновления", anchor("Обновления"))
             Updates(app)
             Spacer(Modifier.height(24.dp))
         }
@@ -328,6 +353,50 @@ private fun Toggle(
             Text(text, fontSize = 12.sp, color = Palette.Text3)
         }
         PanelSwitch(checked, onChange)
+    }
+}
+
+private val SECTIONS = listOf("Подключение", "Мониторинг", "Музыка", "Предупреждения", "Интерфейс", "Безопасность", "О приложении", "Обновления")
+
+/** What the search knows: every setting, where it lives, and the words people may type for it. */
+private class Entry(val title: String, val section: String, val words: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val tone: Tone)
+
+private val SEARCH = listOf(
+    Entry("Компьютеры", "Подключение", "пк устройства переключить новый qr код", AppIcons.Devices, Tone.Teal),
+    Entry("USB-кабель", "Подключение", "провод отладка adb кабель", AppIcons.Usb, Tone.Blue),
+    Entry("Частота обновления", "Мониторинг", "интервал секунды обновление показатели нагрузка батарея", AppIcons.Pulse, Tone.Blue),
+    Entry("Карточка в шторке", "Музыка", "уведомление плеер обложка экран блокировки", AppIcons.Music, Tone.Pink),
+    Entry("Громкость кнопками телефона", "Музыка", "звук кнопки громкость", AppIcons.Volume, Tone.Pink),
+    Entry("Ползунок волной", "Музыка", "волна полоса трек", AppIcons.Pulse, Tone.Pink),
+    Entry("Сообщать о нагрузке", "Предупреждения", "порог процессор память видеокарта диск батарея уведомления предупреждения", AppIcons.Bell, Tone.Red),
+    Entry("Сообщать, если пропала связь", "Предупреждения", "нет связи офлайн отключился", AppIcons.Link, Tone.Pink),
+    Entry("Системные уведомления", "Предупреждения", "шторка разрешение уведомления", AppIcons.Bell, Tone.Amber),
+    Entry("Оформление", "Интерфейс", "тема цвет акцент тёмная светлая чёрно-белый обои", AppIcons.Palette, Tone.Violet),
+    Entry("Чёрный фон AMOLED", "Оформление", "amoled чёрный oled экран", AppIcons.Palette, Tone.Violet),
+    Entry("Анимации", "Оформление", "анимация переходы движение", AppIcons.Palette, Tone.Violet),
+    Entry("Поворот экрана", "Оформление", "ориентация альбомная книжная поворот", AppIcons.Palette, Tone.Violet),
+    Entry("Частота кадров", "Оформление", "гц герц 60 90 120 плавность fps", AppIcons.Palette, Tone.Violet),
+    Entry("Облегчённый режим", "Оформление", "слабый телефон лёгкий lite", AppIcons.Palette, Tone.Violet),
+    Entry("Безопасность", "Безопасность", "tls шифрование ключ права доступ", AppIcons.Lock, Tone.Teal),
+    Entry("Версия приложения", "О приложении", "версия о приложении kirox", AppIcons.Info, Tone.Violet),
+    Entry("Обновления", "Обновления", "обновить новая версия github скачать", AppIcons.Download, Tone.Blue),
+)
+
+/** Material 3 search bar of the approved «Настройки» mockup. */
+@Composable
+private fun SearchPill(query: String, onChange: (String) -> Unit) {
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp))
+        .background(Palette.Surface2).padding(start = 18.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.Icon(AppIcons.Search, null, tint = Palette.Text2, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.size(12.dp))
+        androidx.compose.foundation.text.BasicTextField(query, onChange, singleLine = true, modifier = Modifier.weight(1f),
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = Palette.Text),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.accent),
+            decorationBox = { field ->
+                if (query.isEmpty()) Text("Найти настройку", fontSize = 16.sp, color = Palette.Text2)
+                field()
+            })
+        if (query.isNotEmpty()) com.kirdev.pulsedeckmobile.core.ui.IconButtonSmall(AppIcons.Close, "Очистить", size = 44.dp, onClick = { onChange("") })
     }
 }
 

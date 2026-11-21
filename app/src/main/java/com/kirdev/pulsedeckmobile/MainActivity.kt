@@ -48,9 +48,24 @@ class MainActivity : ComponentActivity() {
                     AppOverlays(app)
                     var intro by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(!app.introDone) }
                     if (intro) {
+                        val link by app.connection.state.collectAsStateWithLifecycle()
+                        val numbers by app.connection.metrics.collectAsStateWithLifecycle()
+                        val stage = when (link) {
+                            is com.kirdev.pulsedeckmobile.data.model.ConnectionState.Connected -> if (numbers != null) 2 else 1
+                            is com.kirdev.pulsedeckmobile.data.model.ConnectionState.Connecting,
+                            is com.kirdev.pulsedeckmobile.data.model.ConnectionState.Reconnecting -> 0
+                            else -> 2                     // not paired, revoked, certificate: their own screens
+                        }
+                        val pcName = when (val s = link) {
+                            is com.kirdev.pulsedeckmobile.data.model.ConnectionState.Connected -> s.pcName
+                            is com.kirdev.pulsedeckmobile.data.model.ConnectionState.Connecting -> s.pc.name
+                            is com.kirdev.pulsedeckmobile.data.model.ConnectionState.Reconnecting -> s.pc.name
+                            else -> null
+                        }
                         com.kirdev.pulsedeckmobile.core.ui.LaunchIntro(
                             enabled = prefs.animations && !com.kirdev.pulsedeckmobile.core.ui.Device.lite,
                             background = com.kirdev.pulsedeckmobile.core.theme.Palette.Black,
+                            stage = stage, pcName = pcName,
                         ) {
                             app.introDone = true
                             intro = false

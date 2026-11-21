@@ -50,7 +50,7 @@ class PulseDeskApp : Application() {
         history = MetricsHistory(connection.metrics, scope)
         events = EventsFeed(api)
         updater = Updater(this, scope)
-        alerts = AlertCenter(this, connection, settings, visible, scope)      // main thread: one at a time
+        alerts = AlertCenter(this, connection, settings, visible, scope, api)      // main thread: one at a time
 
         scope.launch {
             settings.values.collect {

@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.padding
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clip
 
 private val Container = Color(0xFF4F378B)
 private val Ink = Color(0xFFEADDFF)
@@ -46,9 +49,11 @@ private val EMPHASIZED = CubicBezierEasing(0.2f, 0f, 0f, 1f)
  * Launch animation over the first screen: the logo «PC and phone» in its purple circle (as on the
  * system splash screen) — a pulse runs across the monitor, the phone bounces — then the logo grows
  * and fades while the app shows through. About 0.8 s, once per cold start; a tap skips it.
+ * If the PC is not there yet, it stays up to 4 s more with the real steps of the link
+ * ([stage]: 0 — looking for the PC, 1 — linked, waiting for the first numbers, 2 — ready).
  */
 @Composable
-fun LaunchIntro(enabled: Boolean, background: Color, onDone: () -> Unit) {
+fun LaunchIntro(enabled: Boolean, background: Color, stage: Int = 2, pcName: String? = null, onDone: () -> Unit) {
     if (!enabled) {
         LaunchedEffect(Unit) { onDone() }
         return
@@ -57,6 +62,8 @@ fun LaunchIntro(enabled: Boolean, background: Color, onDone: () -> Unit) {
     val bounce = remember { Animatable(0f) }
     val leave = remember { Animatable(0f) }
     var skipped by remember { mutableStateOf(false) }
+    var waiting by remember { mutableStateOf(false) }
+    val stageNow by androidx.compose.runtime.rememberUpdatedState(stage)
     LaunchedEffect(skipped) {
         if (skipped) {
             leave.animateTo(1f, tween(160, easing = LinearEasing))
@@ -65,6 +72,13 @@ fun LaunchIntro(enabled: Boolean, background: Color, onDone: () -> Unit) {
         }
         launch { bounce.animateTo(1f, tween(420, delayMillis = 120, easing = LinearEasing)) }
         pulse.animateTo(1f, tween(480, easing = EMPHASIZED))
+        if (stageNow < 2) {
+            waiting = true
+            kotlinx.coroutines.withTimeoutOrNull(4_000) {
+                androidx.compose.runtime.snapshotFlow { stageNow }.first { it >= 2 }
+                kotlinx.coroutines.delay(350)            // the last step is seen ticking
+            }
+        }
         leave.animateTo(1f, tween(320, easing = EMPHASIZED))
         onDone()
     }
@@ -108,6 +122,39 @@ fun LaunchIntro(enabled: Boolean, background: Color, onDone: () -> Unit) {
         ) {
             androidx.compose.material3.Text("PulseDesk", fontSize = 32.sp, fontWeight = FontWeight.Medium, color = com.kirdev.pulsedeckmobile.core.theme.Palette.Text)
             androidx.compose.material3.Text("пульт вашего ПК", fontSize = 14.sp, color = com.kirdev.pulsedeckmobile.core.theme.Palette.Text2)
+        }
+        if (waiting) ConnectingSteps(stage, pcName, Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp)
+            .graphicsLayer { alpha = 1f - leave.value })
+    }
+}
+
+/** «Подключаюсь к …» with the steps that really happened (approved «Загрузка» mockup). */
+@Composable
+private fun ConnectingSteps(stage: Int, pcName: String?, modifier: Modifier) {
+    val p = com.kirdev.pulsedeckmobile.core.theme.Palette
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, tween(400, easing = EMPHASIZED)) }
+    androidx.compose.foundation.layout.Column(modifier.graphicsLayer { alpha = appear.value; translationY = (1f - appear.value) * 12.dp.toPx() },
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        androidx.compose.material3.CircularProgressIndicator(color = p.accent, strokeWidth = 4.dp, modifier = Modifier.size(40.dp))
+        androidx.compose.material3.Text(if (pcName != null) "Подключаюсь к $pcName" else "Подключаюсь к ПК", fontSize = 15.sp, color = p.Text,
+            modifier = Modifier.padding(top = 14.dp))
+        androidx.compose.foundation.layout.Row(Modifier.padding(top = 12.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            listOf("Ищу ПК", "Связь есть", "Получаю данные").forEachIndexed { i, label ->
+                val done = stage > i
+                val now = stage == i
+                val blink = breathe(now, 1200)
+                androidx.compose.foundation.layout.Row(
+                    Modifier.height(30.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(15.dp))
+                        .background(if (done) p.Tonal else p.Surface).padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(6.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        .background((if (done) p.OnTonal else p.Text2).copy(alpha = if (now) blink else 1f)))
+                    androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
+                    androidx.compose.material3.Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (done) p.OnTonal else p.Text2)
+                }
+            }
         }
     }
 }

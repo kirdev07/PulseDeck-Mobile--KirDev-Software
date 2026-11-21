@@ -83,6 +83,7 @@ fun FilesScreen(app: PulseDeskApp, go: (String) -> Unit) {
     var pendingDownload by vm.pendingDownload
     var dialog by remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
     var sheetFor by remember { mutableStateOf<FileItem?>(null) }
+    val actions = com.kirdev.pulsedeckmobile.core.ui.rememberActions()
 
     val saveTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val item = pendingDownload
@@ -189,9 +190,36 @@ fun FilesScreen(app: PulseDeskApp, go: (String) -> Unit) {
     sheetFor?.let { item ->
         androidx.compose.material3.ModalBottomSheet(onDismissRequest = { sheetFor = null }, containerColor = Palette.Surface,
             dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Palette.Outline) }) {
+            val full = vm.child(item)
+            val onPc: (suspend () -> String?) -> Unit = { block ->
+                actions.run {
+                    try { block() } catch (e: com.kirdev.pulsedeckmobile.data.remote.ApiError) {
+                        if (e.status == 404) "PulseDeck на ПК не умеет это делать. Обновите PulseDeck." else throw e
+                    }
+                }
+            }
             FileSheet(item, s.path.orEmpty(),
                 onDownload = { sheetFor = null; pendingDownload = item; saveTo.launch(item.name) },
-                onOpen = { sheetFor = null; vm.open(vm.child(item)) },
+                onOpen = { sheetFor = null; vm.open(full) },
+                onOpenOnPc = {
+                    sheetFor = null
+                    val run = { onPc { app.api.openFile(full) } }
+                    if (runs(item)) dialog = {
+                        ConfirmDialog("Запустить «${item.name}» на ПК?", "Это программа или скрипт: она запустится на ПК от имени вашей учётной записи.",
+                            "Запустить", run, danger = false) { dialog = null }
+                    } else run()
+                },
+                onReveal = { sheetFor = null; onPc { app.api.revealFile(full) } },
+                onInfo = {
+                    sheetFor = null
+                    actions.run {
+                        val info = try { app.api.fileInfo(full) } catch (e: com.kirdev.pulsedeckmobile.data.remote.ApiError) {
+                            if (e.status == 404) return@run "PulseDeck на ПК не умеет показывать свойства. Обновите PulseDeck." else throw e
+                        }
+                        dialog = { InfoDialog(info) { dialog = null } }
+                        null
+                    }
+                },
                 onRename = { sheetFor = null; dialog = { InputDialog("Переименовать", item.name, "Сохранить", { vm.rename(item, it) }) { dialog = null } } },
                 onDelete = {
                     sheetFor = null
@@ -288,9 +316,16 @@ private fun DriveCard(name: String, disk: com.kirdev.pulsedeckmobile.data.model.
     }
 }
 
-/** What can be done with one file or folder: only what the PC supports. */
+/** Programs and scripts: opening them on the PC runs them, so the phone asks first. */
+private fun runs(item: FileItem): Boolean = !item.dir &&
+    item.name.substringAfterLast('.', "").lowercase() in setOf("exe", "msi", "bat", "cmd", "ps1", "vbs", "js", "lnk", "scr", "com", "reg")
+
+/** What can be done with one file or folder (approved «Файл · действия» mockup). */
 @Composable
-private fun FileSheet(item: FileItem, folder: String, onDownload: () -> Unit, onOpen: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun FileSheet(
+    item: FileItem, folder: String, onDownload: () -> Unit, onOpen: () -> Unit, onOpenOnPc: () -> Unit, onReveal: () -> Unit,
+    onInfo: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit,
+) {
     val (icon, tone) = kind(item)
     Column(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 24.dp)) {
         Row(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -304,16 +339,60 @@ private fun FileSheet(item: FileItem, folder: String, onDownload: () -> Unit, on
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        val big = if (item.dir) AppIcons.Folder to ("Открыть" to onOpen) else AppIcons.Download to ("Скачать на телефон" to onDownload)
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(64.dp).clip(RoundedCornerShape(20.dp)).background(Palette.Container)
-            .clickable(onClick = big.second.second).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(big.first, null, tint = Palette.OnContainer, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(14.dp))
-            Text(big.second.first, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.OnContainer)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (item.dir) {
+                BigAction(AppIcons.Folder, "Открыть здесь", true, Modifier.weight(1f), onOpen)
+                BigAction(AppIcons.Monitor, "Открыть на ПК", false, Modifier.weight(1f), onOpenOnPc)
+            } else {
+                BigAction(AppIcons.Monitor, if (runs(item)) "Запустить на ПК" else "Открыть на ПК", true, Modifier.weight(1f), onOpenOnPc)
+                BigAction(AppIcons.Download, "На телефон", false, Modifier.weight(1f), onDownload)
+            }
+            BigAction(AppIcons.Folder, "В папке", false, Modifier.weight(1f), onReveal)
         }
         Spacer(Modifier.height(8.dp))
         SheetRow(AppIcons.Edit, "Переименовать", Palette.Text, onRename)
+        SheetRow(AppIcons.Info, "Свойства", Palette.Text, onInfo)
         SheetRow(AppIcons.Trash, "Удалить в корзину ПК", Palette.Error, onDelete)
+    }
+}
+
+@Composable
+private fun BigAction(icon: ImageVector, label: String, strong: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val bg = if (strong) Palette.Container else Palette.Surface2
+    val fg = if (strong) Palette.OnContainer else Palette.Text
+    Column(modifier.height(84.dp).clip(RoundedCornerShape(20.dp)).background(bg).clickable(onClick = onClick).padding(horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(icon, null, tint = fg, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** «Свойства»: what the PC says about the file, nothing guessed. */
+@Composable
+private fun InfoDialog(info: com.kirdev.pulsedeckmobile.data.remote.FileInfo, onDismiss: () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss, containerColor = Palette.Surface2, shape = RoundedCornerShape(28.dp),
+        title = { Text(info.name, color = Palette.Text, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                InfoLine("Тип", if (info.dir) "Папка" else info.name.substringAfterLast('.', "").uppercase().ifBlank { "Файл" })
+                if (info.dir) InfoLine("Внутри", when (val n = info.items) { null, -1 -> Format.UNKNOWN; else -> if (n >= 10000) "больше 10 000" else "$n" })
+                else InfoLine("Размер", Format.bytes(info.size))
+                InfoLine("Изменён", info.modified.ifBlank { Format.UNKNOWN })
+                InfoLine("Создан", info.created.ifBlank { Format.UNKNOWN })
+                InfoLine("Путь", info.path)
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Готово", color = Palette.accent, fontWeight = FontWeight.SemiBold) } },
+    )
+}
+
+@Composable
+private fun InfoLine(title: String, value: String) {
+    Column {
+        Text(title, fontSize = 12.sp, color = Palette.Text2)
+        Text(value, fontSize = 14.sp, color = Palette.Text)
     }
 }
 

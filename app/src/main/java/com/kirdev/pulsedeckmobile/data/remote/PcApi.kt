@@ -24,6 +24,7 @@ data class Scenario(val id: String, val name: String, val count: Int)
 data class PcWindow(val hwnd: Long, val pid: Int, val title: String)
 data class FileRoot(val name: String, val path: String)
 data class FileItem(val name: String, val dir: Boolean, val size: Long)
+data class FileInfo(val name: String, val path: String, val dir: Boolean, val size: Long, val modified: String, val created: String, val items: Int?)
 data class Folder(val path: String, val parent: String, val items: List<FileItem>)
 data class Transfer(val time: String, val name: String, val incoming: Boolean, val ok: Boolean)
 /** [protected]: system process or PulseDeck itself; the PC refuses to end it, so no button. */
@@ -90,6 +91,15 @@ class PcApi(private val endpoint: StateFlow<Endpoint?>) {
     suspend fun rename(path: String, name: String) = post("files/rename", JSONObject().put("path", path).put("name", name))
     /** To the Recycle Bin on the PC, never a permanent delete. */
     suspend fun delete(path: String) = post("files/delete", JSONObject().put("path", path))
+    /** Opens it with its Windows program on the PC's screen. */
+    suspend fun openFile(path: String) = post("files/open", JSONObject().put("path", path))
+    /** Explorer on the PC with the file selected. */
+    suspend fun revealFile(path: String) = post("files/reveal", JSONObject().put("path", path))
+    suspend fun fileInfo(path: String): FileInfo {
+        val d = get("files/info", "path" to path)
+        return FileInfo(d.optString("name"), d.optString("path"), d.optBoolean("dir"), d.optLong("size"),
+            d.optString("modified"), d.optString("created"), if (d.has("items")) d.optInt("items") else null)
+    }
     suspend fun history(): List<Transfer> = get("history").list("history") {
         Transfer(it.optString("time"), it.optString("name"), it.optString("direction") == "incoming",
             it.optString("status") in setOf("sent", "received"))

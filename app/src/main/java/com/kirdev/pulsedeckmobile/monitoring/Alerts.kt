@@ -94,7 +94,8 @@ class AlertCenter(
     private val connection: PcConnection,
     private val settings: AppSettings,
     private val visible: StateFlow<Boolean>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
+    private val api: com.kirdev.pulsedeckmobile.data.remote.PcApi? = null,
 ) {
     private val monitor = AlertMonitor()
     private val _alerts = MutableStateFlow<Set<Limit>>(emptySet())
@@ -152,9 +153,25 @@ class AlertCenter(
 
     private fun notice(text: String, key: String) {
         if (Notices.quiet) return
-        if (visible.value) _banner.value = Banner(text, key)
-        if (settings.values.value.notify) show(context, "PulseDeck · ${pcName.ifBlank { "ПК" }}", text, key)
+        scope.launch {
+            // Processor and memory: name what takes the most (when this phone may see processes).
+            val culprit = if (key == Limit.CPU.name || key == Limit.RAM.name) heaviest(key == Limit.RAM.name) else null
+            val full = if (culprit != null) "$text · больше всех: $culprit" else text
+            if (visible.value) _banner.value = Banner(full, key)
+            if (settings.values.value.notify) show(context, "PulseDeck · ${pcName.ifBlank { "ПК" }}", full, key)
+        }
     }
+
+    private suspend fun heaviest(memory: Boolean): String? = runCatching {
+        kotlinx.coroutines.withTimeout(3_000) {
+            val list = api?.processes().orEmpty().filter { it.name.isNotBlank() }
+            val top = if (memory) list.maxByOrNull { it.memory } else list.maxByOrNull { it.cpu }
+            top?.let { p ->
+                val name = p.name.removeSuffix(".exe").removeSuffix(".EXE")
+                if (memory) "$name (${com.kirdev.pulsedeckmobile.core.utils.Format.bytes(p.memory)})" else "$name (${"%.0f".format(p.cpu)}%)"
+            }
+        }
+    }.getOrNull()
 
     companion object {
         fun allowed(context: Context): Boolean = Build.VERSION.SDK_INT < 33 ||

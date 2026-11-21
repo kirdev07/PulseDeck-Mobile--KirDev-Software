@@ -75,7 +75,8 @@ private class Line(
 
 /** «Мониторинг B» (approved mockup): everything at once; a tap opens the big chart of that line. */
 @Composable
-fun MonitoringScreen(app: PulseDeskApp) {
+fun MonitoringScreen(app: PulseDeskApp, go: (String) -> Unit) {
+    val connState by app.connection.state.collectAsStateWithLifecycle()
     val metrics by app.connection.metrics.collectAsStateWithLifecycle()
     val series by app.history.series.collectAsStateWithLifecycle()
     val prefs by app.settings.values.collectAsStateWithLifecycle()
@@ -90,7 +91,8 @@ fun MonitoringScreen(app: PulseDeskApp) {
         }
         val m = metrics
         if (m == null) {
-            Placeholder("Нет данных: ПК не на связи.")
+            com.kirdev.pulsedeckmobile.core.ui.NoConnection(connState, onRetry = { app.connection.restart() },
+                onChoose = { go(if (connState == com.kirdev.pulsedeckmobile.data.model.ConnectionState.NotPaired) com.kirdev.pulsedeckmobile.navigation.Routes.PAIR else com.kirdev.pulsedeckmobile.navigation.Routes.DEVICES) })
             return
         }
         val lines = lines(m, series, prefs)

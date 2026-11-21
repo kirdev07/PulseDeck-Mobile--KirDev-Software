@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
@@ -70,7 +71,7 @@ import com.kirdev.pulsedeckmobile.data.remote.FileItem
 /** «Файлы» (approved mockup): drives with how full they are, the path as chips, coloured file types, actions in a sheet. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun FilesScreen(app: PulseDeskApp) {
+fun FilesScreen(app: PulseDeskApp, go: (String) -> Unit) {
     val vm: FilesViewModel = viewModel(factory = viewModelFactory { initializer { FilesViewModel(app.api) } })
     val s by vm.state.collectAsStateWithLifecycle()
     val message by vm.messages.collectAsStateWithLifecycle()
@@ -142,7 +143,8 @@ fun FilesScreen(app: PulseDeskApp) {
             }
         }
         when {
-            connection !is ConnectionState.Connected -> Placeholder("Нет связи с ПК.")
+            connection !is ConnectionState.Connected -> { val connState = connection; androidx.compose.foundation.layout.Box(Modifier.verticalScroll(rememberScrollState())) { com.kirdev.pulsedeckmobile.core.ui.NoConnection(connState, onRetry = { app.connection.restart() },
+                onChoose = { go(if (connState == com.kirdev.pulsedeckmobile.data.model.ConnectionState.NotPaired) com.kirdev.pulsedeckmobile.navigation.Routes.PAIR else com.kirdev.pulsedeckmobile.navigation.Routes.DEVICES) }) } }
             s.error != null -> Placeholder(s.error!!, action = "Повторить", onAction = vm::reload)
             s.loading && s.items.isEmpty() && s.roots.isEmpty() -> Placeholder("Загрузка…")
             s.path == null -> LazyColumn(Modifier.padding(horizontal = 8.dp), contentPadding = PaddingValues(bottom = 88.dp)) {

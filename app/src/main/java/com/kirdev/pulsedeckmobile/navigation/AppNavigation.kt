@@ -173,9 +173,9 @@ private fun Screens(app: PulseDeskApp, nav: NavHostController) {
         val back: () -> Unit = { nav.popBackStack() }
         val go: (String) -> Unit = { nav.navigate(it) }
         composable(Routes.HOME) { HomeScreen(app, go) }
-        composable(Routes.MONITORING) { MonitoringScreen(app) }
+        composable(Routes.MONITORING) { MonitoringScreen(app, go) }
         composable(Routes.CONTROL) { ControlScreen(app, go) }
-        composable(Routes.FILES) { FilesScreen(app) }
+        composable(Routes.FILES) { FilesScreen(app, go) }
         composable(Routes.MENU) { MenuScreen(app, go) }
         composable(Routes.MUSIC) { MusicScreen(app, back) }
         composable(Routes.PROCESSES) { ProcessesScreen(app, back) }

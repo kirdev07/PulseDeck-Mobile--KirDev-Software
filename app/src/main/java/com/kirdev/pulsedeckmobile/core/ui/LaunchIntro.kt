@@ -32,6 +32,9 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.padding
 import kotlinx.coroutines.launch
 
 private val Container = Color(0xFF4F378B)
@@ -94,6 +97,17 @@ fun LaunchIntro(enabled: Boolean, background: Color, onDone: () -> Unit) {
                     drawRoundRect(Accent, Offset(29f, 19f), Size(12f, 20f), CornerRadius(3.5f))
                 }
             }
+        }
+        // The name comes up under the logo while the pulse runs (approved «Загрузка» mockup).
+        androidx.compose.foundation.layout.Column(
+            Modifier.padding(top = 250.dp).graphicsLayer {
+                alpha = pulse.value * (1f - leave.value)
+                translationY = (1f - pulse.value) * 8.dp.toPx()
+            },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            androidx.compose.material3.Text("PulseDesk", fontSize = 32.sp, fontWeight = FontWeight.Medium, color = com.kirdev.pulsedeckmobile.core.theme.Palette.Text)
+            androidx.compose.material3.Text("пульт вашего ПК", fontSize = 14.sp, color = com.kirdev.pulsedeckmobile.core.theme.Palette.Text2)
         }
     }
 }

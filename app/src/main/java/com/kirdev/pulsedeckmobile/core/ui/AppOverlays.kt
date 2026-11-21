@@ -8,14 +8,26 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import com.kirdev.pulsedeckmobile.core.utils.Format
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -97,36 +109,69 @@ private fun LocalNetworkGate(app: PulseDeskApp) {
     }
 }
 
-/** A new version is downloaded automatically (see Updater.checkAutomatically); this shows it. */
+/**
+ * «Обновление» (approved mockup): a sheet from below — what is new, the download as a wave,
+ * «Установить» lights up once the file is here. A new version downloads by itself (Updater.checkAutomatically).
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun UpdatePrompt(app: PulseDeskApp) {
     val state by app.updater.state.collectAsStateWithLifecycle()
     var dismissed by rememberSaveable { mutableStateOf("") }
-    val (version, progress, ready) = when (val s = state) {
-        is UpdateState.Downloading -> Triple(s.release.version, s.fraction, null)
-        is UpdateState.Ready -> Triple(s.release.version, 1f, s)
+    val (release, progress, ready) = when (val s = state) {
+        is UpdateState.Downloading -> Triple(s.release, s.fraction, null)
+        is UpdateState.Ready -> Triple(s.release, 1f, s)
         else -> return
     }
-    if (dismissed == version) return
-    AlertDialog(
-        onDismissRequest = { dismissed = version },
-        containerColor = Palette.Surface,
-        title = { Text("Обновление PulseDesk $version", color = Palette.Text) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (ready == null) {
-                    Text("Скачиваю новую версию: ${(progress * 100).toInt()}%", color = Palette.Text2, fontSize = 14.sp)
-                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth(),
-                        color = Palette.accent, trackColor = Palette.Surface2)
-                } else {
-                    Text("Версия скачана. Нажмите «Установить» и подтвердите в окне Android — пара с ПК и настройки сохранятся.",
-                        color = Palette.Text2, fontSize = 14.sp, lineHeight = 19.sp)
+    if (dismissed == release.version) return
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = { dismissed = release.version }, containerColor = Palette.Surface,
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Palette.Outline) }) {
+        Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 24.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Container), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(AppIcons.Download, null, tint = Palette.OnContainer, modifier = Modifier.size(28.dp))
+                }
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text("Новая версия ${release.version}", fontSize = 22.sp, color = Palette.Text)
+                    Text("у вас ${app.updater.current}" + if (release.size > 0) " · ${Format.bytes(release.size)}" else "",
+                        fontSize = 13.sp, color = Palette.Text2)
                 }
             }
-        },
-        confirmButton = {
-            if (ready != null) TextButton(onClick = { app.updater.install(ready.file) }) { Text("Установить", color = Palette.accent) }
-        },
-        dismissButton = { TextButton(onClick = { dismissed = version }) { Text("Позже", color = Palette.Text3) } },
-    )
+            val notes = release.notes.lines().map { it.trim().trimStart('-', '*', '•', ' ').replace("**", "").replace("`", "") }
+                .filter { it.isNotBlank() && !it.startsWith("#") }.take(5)
+            if (notes.isNotEmpty()) {
+                Text("Что нового", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Palette.accent, modifier = Modifier.padding(top = 22.dp, bottom = 8.dp))
+                notes.forEach { line ->
+                    Row(Modifier.padding(vertical = 3.dp)) {
+                        Box(Modifier.padding(top = 7.dp).size(6.dp).clip(CircleShape).background(Palette.accent))
+                        Spacer(Modifier.width(10.dp))
+                        Text(line, fontSize = 14.sp, color = Palette.Text, lineHeight = 19.sp)
+                    }
+                }
+            }
+            Row(Modifier.padding(top = 22.dp, bottom = 8.dp)) {
+                Text(if (ready == null) "Загружаю…" else "Готово к установке", fontSize = 13.sp, color = Palette.Text, modifier = Modifier.weight(1f))
+                Text(if (release.size > 0) "${Format.bytes((release.size * progress).toLong())} из ${Format.bytes(release.size)} · ${(progress * 100).toInt()}%"
+                    else "${(progress * 100).toInt()}%", fontSize = 13.sp, color = Palette.Text2)
+            }
+            com.kirdev.pulsedeckmobile.feature.media.SquigglyProgress(progress, playing = ready == null, motion = Motion.on,
+                modifier = Modifier.fillMaxWidth())
+            Text(if (ready == null) "Загрузка идёт в фоне — это окно можно закрыть."
+                else "Нажмите «Установить» и подтвердите в окне Android — пара с ПК и настройки сохранятся.",
+                fontSize = 12.sp, color = Palette.Text2, modifier = Modifier.padding(top = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 22.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                Box(Modifier.height(40.dp).clip(RoundedCornerShape(20.dp)).border(1.dp, Palette.Outline, RoundedCornerShape(20.dp))
+                    .clickable { dismissed = release.version }.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+                    Text("Позже", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.accent)
+                }
+                Box(Modifier.height(40.dp).clip(RoundedCornerShape(20.dp))
+                    .background(if (ready != null) Palette.accent else Palette.Disabled.copy(alpha = 0.12f))
+                    .clickable(enabled = ready != null) { ready?.let { app.updater.install(it.file) } }.padding(horizontal = 22.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text("Установить", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (ready != null) Palette.onAccent else Palette.Disabled)
+                }
+            }
+        }
+    }
 }

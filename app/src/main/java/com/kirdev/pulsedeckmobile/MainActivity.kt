@@ -40,6 +40,8 @@ class MainActivity : ComponentActivity() {
         debugOpen(intent)
         setContent {
             val prefs by app.settings.values.collectAsStateWithLifecycle()
+            com.kirdev.pulsedeckmobile.core.ui.Motion.on = prefs.animations && !com.kirdev.pulsedeckmobile.core.ui.Device.lite &&
+                android.animation.ValueAnimator.areAnimatorsEnabled()
             PulseDeskTheme(prefs) {
                 Box(Modifier.fillMaxSize()) {
                     AppNavigation(app)
